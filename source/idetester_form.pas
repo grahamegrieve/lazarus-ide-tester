@@ -9,12 +9,10 @@ uses
   StdCtrls, ActnList, Menus, IniFiles, LCLIntf, laz.VirtualTrees, ClipBrd,
   Generics.Collections,
   fpcunit, testregistry, testdecorator,
-  idetester_options, idetester_engines;
+  idetester_options, idetester_base, idetester_strings, idetester_direct, idetester_ini;
 
 const
   KILL_TIME_DELAY = 5000;
-  CAN_RELOAD_TESTS = false;
-  CAN_TERMINATE = false;
   CAN_CONFIGURE = true;
 
 type
@@ -48,7 +46,7 @@ type
   end;
 
   { TTesterForm }
-  TTesterForm = class(TForm, ITestListener)
+  TTesterForm = class(TForm)
     actionTestConfigure: TAction;
     actionTestReload: TAction;
     actionTestSelectAll: TAction;
@@ -109,13 +107,15 @@ type
     procedure tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
     procedure tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
   private
-    FIni : TIniFile;
+    FEngine : TTestEngine;
+    FStore : TTestSettingsProvider;
+
     FTestInfo : TTestNodeList;
     FRunningTest : TTestNode;
     FTestsTotal, FTestsCount, FFailCount, FErrorCount : cardinal;
     FWantStop : boolean;
     FSelectedNode : TTestNode;
-    FTestResult : TTestResult;
+    FSession : TTestSession;
     FLock : TRTLCriticalSection;
     FIncoming : TTestEventQueue;
     FShuttingDown : boolean;
@@ -141,7 +141,6 @@ type
     procedure UpdateTotals;
     procedure queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
     procedure killRunningTests;
-  public
     procedure AddFailure(ATest: TTest; AFailure: TTestFailure);
     procedure AddError(ATest: TTest; AError: TTestFailure);
     procedure StartTest(ATest: TTest);
@@ -150,6 +149,11 @@ type
     procedure EndTestSuite(ATestSuite: TTestSuite); overload;
     procedure EndTestSuite(ATest: TTestNode); overload;
     procedure EndAll(ATest: TTestNode);
+    function nodeFactory(parent : TTestNode) : TTestNode;
+  public
+    // these two must be set before the Form is shown
+    property engine : TTestEngine read FEngine write FEngine;
+    property store : TTestSettingsProvider read FStore write FStore;
   end;
 
 var
@@ -159,46 +163,7 @@ implementation
 
 {$R *.lfm}
 
-resourcestring
-  rsAllTests = 'All Tests';
-  //rsRun = 'Run ';
-  rsRuns = 'Tests: %s/%s';
-  rsErrors = '%s    Errors: %s';
-  rsFailures = '%s     Failures: %s';
 
-  //rsMessage = 'Message: %s';
-  //rsException = 'Exception: %s';
-  //rsExceptionMes = 'Exception message: %s';
-  //rsExceptionCla = 'Exception class: %s';
-  //rsUnitName = 'Unit name: %s';
-  //rsMethodName = 'Method name: %s';
-  //rsLineNumber = 'Line number: %s';
-  //rsRunning = 'Running %s';
-  //rsNumberOfExec = 'Number of executed tests: %s  Time elapsed: %s';
-  //// Visual components captions
-  //sfrmGUITest = 'FPCUnit - run unit test';
-  //sbtnRun = 'Run';
-  //sbtnRunH = 'Run highlighted test';
-  //sbtnClose = 'Close';
-  //stshTree = 'Testcase tree';
-  //stshResults = 'Results XML';
-  //sactRunAction = '&Run all';
-  //sactRunActionH = 'Run all checked tests';
-  //sactCloseForm = 'Quit';
-  //sactCloseFormH = 'Quit testing';
-  //sactCheckCurrentSuite = 'Select current suite';
-  //sactUncheckCurrentSuite = 'Deselect current suite';
-  //sactCheckAll = 'Select all tests';
-  //sactUncheckAll = 'Deselect all tests';
-  //sactRunHighlightedTest = 'Run selected';
-  //sactRunHighlightedTestH = 'Run selected test';
-  //smiActions = 'Actions';
-  //smiTestTree = 'Test tree';
-  //smiEdit = 'Edit';
-  //sactCopyAllToClipboard = 'Copy text to clipboard';
-  //sactCopyAllToClipboardH = 'Copy the entire text to clipboard';
-  //sactSaveResults = 'Save results';
-  //sactSaveResultsH = 'Save XML results to file';
 
 { TTestThread }
 
@@ -210,166 +175,10 @@ begin
   end;
 end;
 
-{ TTestNode }
-
-procedure TTestNode.SetOutcome(AValue: TTestOutcome);
-begin
-  FOutcome := AValue;
-  TesterForm.tvTests.InvalidateNode(FNode);
-end;
-
-function TTestNode.testCount: cardinal;
-var
-  child : TTestNode;
-begin
-  result := 0;
-  for child in FChildren do
-    if (child.test is TTestCase) then
-      inc(result)
-    else
-      inc(result, child.testCount);
-end;
-
-constructor TTestNode.Create;
-begin
-  inherited Create;
-  FChildren := TTestNodeList.create;
-  FChildren.OwnsObjects := false;
-  FDuration := -1;
-end;
-
-destructor TTestNode.Destroy;
-begin
-  FChildren.Free;
-  inherited Destroy;
-end;
-
-function TTestNode.description: String;
-begin
-  if FParent = nil then
-    result := rsAllTests
-  else if FTest.TestName <> '' then
-    result := FTest.TestName
-  else
-    result := FTest.ClassName;
-
-  if (FDuration > -1) or (FChildren.Count > 0) then
-  begin
-    result := result + ' (';
-    if (FChildren.Count > 0) then
-      result := result + inttostr(testCount)+' tests';
-    if (FDuration > -1) and (FChildren.Count > 0) then
-      result := result + ', ';
-    if FDuration > -1 then
-      result := result + inttostr(FDuration)+'ms';
-    result := result + ')';
-  end;
-  if ExceptionMessage <> '' then
-    result := result +': '+ExceptionMessage;
-end;
-
-function TTestNode.details(indent : String): String;
-var
-  b : TStringBuilder;
-  child : TTestNode;
-  tn : String;
-begin
-  if FChildren.Count = 0 then
-  begin
-    result := indent+FTest.TestName;
-    if (FDuration > -1) or (FChildren.Count > 0) then
-    begin
-      result := result + ' (';
-      if (FChildren.Count > 0) then
-        result := result + inttostr(testCount)+' tests';
-      if (FDuration > -1) and (FChildren.Count > 0) then
-        result := result + ', ';
-      if FDuration > -1 then
-        result := result + inttostr(FDuration)+'ms';
-      result := result + ')';
-    end;
-    if FExceptionMessage <> '' then
-      if FSourceUnitName <> '' then
-        result := result + '. '+FExceptionClassName+': '+FExceptionMessage+' (@'+FSourceUnitName+'#'+inttostr(FLineNumber)
-      else
-        result := result + '. '+FExceptionClassName+': '+FExceptionMessage;
-    result := result + #13#10;
-  end
-  else
-  begin
-    b := TStringBuilder.create;
-    try
-      if FParent = nil then
-        tn := rsAllTests
-      else
-        tn := FTest.TestName;
-      b.append(indent+'-- '+tn+' Starts ---------------------------------'+#13#10);
-      for child in FChildren do
-        b.append(child.details(indent+'  '));
-      b.append(indent+'-- '+tn+' Ends -----------------------------------'+#13#10);
-      result := b.toString;
-    finally
-      b.free;
-    end;
-  end;
-end;
-
-procedure TTestNode.start;
-begin
-  FStartTime := GetTickCount64;
-end;
-
-procedure TTestNode.finish;
-begin
-  if FStartTime >0 then
-  begin
-    Duration := GetTickCount64 - FStartTime;
-    FStartTime := 0;
-  end;
-end;
-
-procedure TTestNode.SetCheckState(AValue: TTestCheckState);
-begin
-  case AValue of
-    tcsUnchecked : FNode.CheckState := csUncheckedNormal;
-    tcsChecked : FNode.CheckState := csCheckedNormal;
-    tcsMixed : FNode.CheckState := csMixedNormal;
-  end;
-  TesterForm.tvTests.InvalidateNode(FNode);
-end;
-
-function TTestNode.GetCheckState: TTestCheckState;
-begin
-  case FNode.CheckState of
-    csUncheckedNormal, csUncheckedPressed : result := tcsUnchecked;
-    csCheckedNormal, csCheckedPressed : result := tcsChecked;
-    csMixedNormal, csMixedPressed : result := tcsMixed;
-  end;
-end;
-
-procedure TTestNode.SetDuration(AValue: Int64);
-begin
-  FDuration := AValue;
-  // don't do this - we're in the test thread, and update will be called later... TesterForm.tvTests.InvalidateNode(FNode);
-end;
-
-{ TTestNodeList }
-
-function TTestNodeList.forTest(test: TTest): TTestNode;
-var
-  ti : TTestNode;
-begin
-  result := nil;
-  for ti in self do
-    if ti.test = test then
-      exit(ti);
-end;
-
 { TTesterForm }
 
 procedure TTesterForm.FormCreate(Sender: TObject);
 begin
-  FIni := TIniFile.create(IncludeTrailingPathDelimiter(getAppConfigDir(true))+'fhir-tests-settings.ini');
   FTestInfo := TTestNodeList.create;
   FTestInfo.OwnsObjects := true;
   InitCriticalSection(FLock);
@@ -384,20 +193,26 @@ procedure TTesterForm.FormDestroy(Sender: TObject);
 begin
   FShuttingDown := true;
   saveState;
-  FIni.Free;
   FTestInfo.Free;
   FIncoming.Free;
   DoneCriticalSection(FLock);
+  FEngine.Free;
+  FStore.Free;
 end;
 
 procedure TTesterForm.FormShow(Sender: TObject);
 begin
-  if not CAN_RELOAD_TESTS then
+  if store = nil then
+    store := TTestIniSettingsProvider.create(IncludeTrailingPathDelimiter(getAppConfigDir(true))+'fhir-tests-settings.ini');
+  if engine = nil then
+    engine := TTestEngineDirect.create;
+
+  if not engine.doesReload then
   begin
     tbBtnReload.visible := false;
     tbBtnReloadSep.visible := false;
   end;
-  if not CAN_CONFIGURE then
+  if not CAN_CONFIGURE then // todo - should this be the engine that decides this?
   begin
     tbBtnConfigure.visible := false;
     tbBtnConfigureSep.visible := false;
@@ -447,7 +262,7 @@ begin
   pc := 0;
   for tn in FTestInfo do
   begin
-    if tn.test is TTestCase then
+    if not tn.hasChildren then
     begin
       inc(tc);
       if tn.checkState = tcsChecked then
@@ -486,79 +301,38 @@ begin
   CellText := tn(node).description;
 end;
 
-procedure TTesterForm.LoadTree;
-var
-  test : TTestSuite;
-  node: TTestNode;
-begin
-  tvTests.NodeDataSize := sizeof(pointer);
-  test := GetTestRegistry;
-  node := registerTestNode(nil, test, rsAllTests);
-  BuildTree(node, test);
-  tvTests.Selected[FTestInfo[0].node] := true;
-  tvTests.Expanded[FTestInfo[0].node] := true;
-end;
-
-procedure TTesterForm.BuildTree(rootTest: TTestNode; aSuite: TTestSuite);
-var
-  test: TTestNode;
-  i: integer;
-begin
-  for i := 0 to ASuite.ChildTestCount - 1 do
-  begin
-    if (ASuite.Test[i].TestName = '') and (ASuite.ChildTestCount = 1) then
-      test := rootTest
-    else
-      test := registerTestNode(rootTest, ASuite.Test[i], ASuite.Test[i].TestName);
-
-    if ASuite.Test[i] is TTestSuite then
-      BuildTree(test, TTestSuite(ASuite.Test[i]))
-    else if TObject(ASuite.Test[i]).InheritsFrom(TTestDecorator) then
-      BuildTree(test, TTestSuite(TTestDecorator(ASuite.Test[i]).Test));
-  end;
-end;
-
-function TTesterForm.registerTestNode(parent: TTestNode; test: TTest; name: String): TTestNode;
+function TTesterForm.nodeFactory(parent : TTestNode) : TTestNode;
 var
   p : PTestNodeData;
 begin
-  result := TTestNode.create;
+  result := TTestNode.create(parent);
   FTestInfo.add(result);
 
   if (parent <> nil) then
-  begin
-    result.FParent := parent;
-    parent.FChildren.add(result);
-    result.FNode := tvTests.AddChild(parent.Node);
-  end
+    result.Node := tvTests.AddChild(parent.Node)
   else
-    result.FNode := tvTests.AddChild(nil);
-  p := tvTests.GetNodeData(result.FNode);
-  p.node := result;
-  result.FTest := test;
-  result.checkState := tcsUnchecked;
-  result.outcome := toNotRun;
-  result.FNode.CheckType := ctTriStateCheckBox;
-  result.FNode.CheckState := csUncheckedNormal;
+    result.Node := tvTests.AddChild(nil);
+
+  p := tvTests.GetNodeData(result.Node);
+  p.Node := result;
+  result.Node.CheckType := ctTriStateCheckBox;
+  result.Node.CheckState := csUncheckedNormal;
 end;
 
+procedure TTesterForm.LoadTree;
+begin
+  tvTests.NodeDataSize := sizeof(pointer);
+  engine.loadAllTests(nodeFactory);
+  tvTests.Selected[FTestInfo[0].node] := true;
+  tvTests.Expanded[FTestInfo[0].node] := true;
+end;
 
 // --- Test Selection Management -----------------------------------------------
 
 procedure TTesterForm.tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
 begin
   FSelectedNode := tn(node);
-  if FSelectedNode.FChildren.Count = 0 then
-  begin
-    actTestRunSelected.caption := 'Run this test';
-    actionTestSelectAll.caption := 'Check this test';
-    actionTestUnselectAll.caption := 'Uncheck this test';
-    actionTestSelectAll.hint := 'Check selected test';
-    actionTestUnselectAll.hint := 'Uncheck selected test';
-    actionTestCopy.hint := 'Copy results to clipboard for selected test';
-    actTestRunSelected.caption := 'Run Selected Test';
-  end
-  else
+  if FSelectedNode.hasChildren then
   begin
     actTestRunSelected.caption := 'Run these tests';
     actionTestSelectAll.caption := 'Check these tests';
@@ -567,12 +341,18 @@ begin
     actionTestUnselectAll.hint := 'Uncheck selected tests + children';
     actionTestCopy.hint := 'Copy results to clipboard for selected tests';
     actTestRunSelected.caption := 'Run Selected Test + children';
+  end
+  else
+  begin
+    actTestRunSelected.caption := 'Run this test';
+    actionTestSelectAll.caption := 'Check this test';
+    actionTestUnselectAll.caption := 'Uncheck this test';
+    actionTestSelectAll.hint := 'Check selected test';
+    actionTestUnselectAll.hint := 'Uncheck selected test';
+    actionTestCopy.hint := 'Copy results to clipboard for selected test';
+    actTestRunSelected.caption := 'Run Selected Test';
   end;
   UpdateTotals;
-end;
-
-procedure TTesterForm.tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
-begin
 end;
 
 procedure TTesterForm.tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -590,10 +370,10 @@ var
 begin
   tvTests.BeginUpdate;
 
-  if (FIni.ReadInteger('Tests', 'Count', 0) = FTestInfo.Count) then
+  if (store.read('Count', '0') = inttostr(FTestInfo.Count)) then
   begin
-    ss := FIni.ReadString('Tests', 'States', '');
-    so := FIni.ReadString('Tests', 'Outcomes', '');
+    ss := store.Read('States', '');
+    so := store.Read('Outcomes', '');
     for i := 0 to FTestInfo.count - 1 do
     begin
       ti := FTestInfo[i];
@@ -629,9 +409,9 @@ begin
       bs.append(inttostr(ord(ti.checkState)));
       bo.append(inttostr(ord(ti.outcome)));
     end;
-    FIni.WriteInteger('Tests', 'Count', FTestInfo.Count);
-    FIni.WriteString('Tests', 'States', bs.toString);
-    FIni.WriteString('Tests', 'Outcomes', bo.toString);
+    store.save('Count', inttostr(FTestInfo.Count));
+    store.save('States', bs.toString);
+    store.save('Outcomes', bo.toString);
   finally
     bo.Free;
     bs.Free;
@@ -643,7 +423,7 @@ var
   ti : TTestNode;
 begin
   node.checkState := state;
-  for ti in node.FChildren do
+  for ti in node.Children do
     setTestState(ti, state);
 end;
 
@@ -654,9 +434,9 @@ var
 begin
   if node <> nil then
   begin
-    ti := node.FChildren[0]; // will never be empty
+    ti := node.Children[0]; // will never be empty
     state := ti.checkState;
-    for ti in node.FChildren do;
+    for ti in node.Children do;
       if state <> ti.checkState then
         state := tcsMixed;
     node.checkState := state;
@@ -700,7 +480,7 @@ begin
   for ti in FTestInfo do
   begin
     ti.execute := ti.CheckState <> tcsUnchecked;
-    if (ti.execute) and (ti.test is TTestCase) then
+    if (ti.execute) and (not ti.hasChildren) then
       inc(FTestsTotal);
   end;
 
@@ -729,7 +509,7 @@ begin
 
     FTestsTotal := 0;
     for ti in FTestInfo do
-      if ti.execute and (ti.test is TTestCase) then
+      if ti.execute and (not ti.hasChildren) then
         inc(FTestsTotal);
     FRunningTest := node;
     StartTestRun;
@@ -756,7 +536,7 @@ begin
 
   FTestsTotal := 0;
   for ti in FTestInfo do
-    if ti.execute and (ti.test is TTestCase) then
+    if ti.execute and (not ti.hasChildren) then
       inc(FTestsTotal);
 
   if FTestsTotal > 0 then
@@ -785,7 +565,7 @@ end;
 procedure TTesterForm.actionTestStopExecute(Sender: TObject);
 begin
   FWantStop := true;
-  if CAN_TERMINATE then
+  if engine.canTerminate then
   begin
     FKillTime := GetTickCount64 + KILL_TIME_DELAY;
     actionTestStop.ImageIndex := 14;
@@ -798,7 +578,7 @@ var
 begin
   node.execute := true;
 
-  for child in node.FChildren do
+  for child in node.Children do
     setDoExecute(child);
 end;
 
@@ -883,7 +663,7 @@ begin
           begin
             ev.node.outcome := toRunning;
             ev.node.parent.outcome := toChildRunning;
-            lblStatus.caption := 'Running Test '+ev.node.test.testName;
+            lblStatus.caption := 'Running Test '+ev.node.testName;
           end;
         tekEnd:
           begin
@@ -939,7 +719,7 @@ var
   child : TTestNode;
 begin
   outcome := toUnknown;
-  for child in ATest.FChildren do
+  for child in ATest.Children do
   begin
     case child.outcome of
       toSomePass : if outcome = toUnknown then outcome := toSomePass else if outcome in [toPass, toNotRun] then outcome := toSomePass;
@@ -950,8 +730,7 @@ begin
     end;
   end;
   ATest.outcome := outcome;
-  if ATest.FStartTime > 0 then
-    ATest.finish;
+  ATest.finish;
 end;
 
 procedure TTesterForm.StartTestRun;
@@ -966,10 +745,11 @@ begin
   pbBar.Invalidate;
   setActionStatus(true);
   timer1.Enabled := true;
-  FTestResult := TTestResult.Create;
+
+  FSession := engine.prepareToRunTests;
   for ti in TesterForm.FTestInfo do
-    if not ti.execute and (ti.test is TTestCase) then
-      FTestResult.AddToSkipList(ti.test as TTestCase);
+    if not ti.execute then
+      FSession.skipTest(ti);
 end;
 
 procedure TTesterForm.FinishTestRun;
@@ -978,7 +758,8 @@ begin
   FRunningTest := nil;
   FKillTime := 0;
   actionTestStop.ImageIndex := 3;
-  FreeAndNil(FTestResult);
+  engine.finishTestRun(FSession);
+  FSession := nil;
   Timer1.Enabled := false;
   setActionStatus(false);
   saveState;
@@ -1004,19 +785,7 @@ end;
 
 procedure TTesterForm.DoExecuteTests;
 begin
-  try
-    FTestResult.AddListener(self);
-    if (FRunningTest.Test is TTestSuite) then
-      StartTestSuite(FRunningTest.Test as TTestSuite);
-    try
-      FRunningTest.Test.Run(FTestResult);
-    finally
-      if (FRunningTest.Test is TTestSuite) then
-        EndTestSuite(FRunningTest.test as TTestSuite);
-    end;
-  finally
-    EndAll(FRunningTest);
-  end;
+  engine.runTest(FSession, FRunningTest);
 end;
 
 procedure TTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);

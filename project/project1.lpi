@@ -12,7 +12,6 @@
       <XPManifest>
         <DpiAware Value="True"/>
       </XPManifest>
-      <Icon Value="0"/>
     </General>
     <BuildModes>
       <Item Name="Default" Default="True"/>
@@ -50,7 +49,19 @@
         <HasResources Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="..\source\idetester_engines.pas"/>
+        <Filename Value="..\source\idetester_base.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\source\idetester_strings.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\source\idetester_direct.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\source\idetester_ini.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
