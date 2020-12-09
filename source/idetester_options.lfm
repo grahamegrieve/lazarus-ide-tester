@@ -1,0 +1,78 @@
+object IDETesterSettings: TIDETesterSettings
+  Left = 825
+  Height = 159
+  Top = -583
+  Width = 425
+  Caption = 'IDE Tester Settings'
+  ClientHeight = 159
+  ClientWidth = 425
+  Position = poOwnerFormCenter
+  LCLVersion = '2.1.0.0'
+  object Panel1: TPanel
+    Left = 0
+    Height = 38
+    Top = 121
+    Width = 425
+    Align = alBottom
+    BevelOuter = bvNone
+    ClientHeight = 38
+    ClientWidth = 425
+    TabOrder = 0
+    object Button1: TButton
+      Left = 254
+      Height = 25
+      Top = 6
+      Width = 75
+      Anchors = [akTop, akRight]
+      Caption = 'OK'
+      Default = True
+      ModalResult = 1
+      TabOrder = 0
+    end
+    object Button2: TButton
+      Left = 334
+      Height = 25
+      Top = 6
+      Width = 73
+      Anchors = [akTop, akRight]
+      Cancel = True
+      Caption = 'Cancel'
+      ModalResult = 2
+      TabOrder = 1
+    end
+  end
+  object Label1: TLabel
+    Left = 14
+    Height = 15
+    Top = 10
+    Width = 162
+    Caption = 'Time to wait before killling test'
+    ParentColor = False
+  end
+  object Label2: TLabel
+    Left = 14
+    Height = 15
+    Top = 72
+    Width = 114
+    Caption = 'Execution Parameters'
+    ParentColor = False
+  end
+  object edtParameters: TEdit
+    Left = 14
+    Height = 23
+    Top = 90
+    Width = 394
+    Anchors = [akTop, akLeft, akRight]
+    TabOrder = 1
+    Text = 'edtParameters'
+  end
+  object editWaitTime: TEdit
+    Left = 14
+    Height = 23
+    Top = 28
+    Width = 394
+    Anchors = [akTop, akLeft, akRight]
+    TabOrder = 2
+    Text = 'editWaitTime'
+  end
+end
