@@ -20,7 +20,7 @@ type
 
   { TTestNode }
 
-  TTestNode = class abstract (TObject)
+  TTestNode = class (TObject)
   private
     FDuration: Int64;
     FExceptionClassName: string;
@@ -101,11 +101,11 @@ type
   public
     procedure StartTest(test: TTestNode); virtual; abstract;
     procedure EndTest(test: TTestNode); virtual; abstract;
-    procedure TestFailure(ATest: TTestNode; AFailure: TTestError); virtual; abstract;
-    procedure TestError(ATest: TTestNode; AError: TTestError); virtual; abstract;
-    procedure StartTestSuite(ATest: TTestNode); virtual; abstract;
-    procedure EndTestSuite(ATest: TTestNode); virtual; abstract;
-    procedure EndRun(ATest: TTestNode); virtual; abstract;
+    procedure TestFailure(test: TTestNode; fail: TTestError); virtual; abstract;
+    procedure TestError(test: TTestNode; error: TTestError); virtual; abstract;
+    procedure StartTestSuite(test: TTestNode); virtual; abstract;
+    procedure EndTestSuite(test: TTestNode); virtual; abstract;
+    procedure EndRun(test: TTestNode); virtual; abstract;
   end;
 
   TTestEngineThreadMode = (ttmMainThread, ttmOtherThread, ttmEither);
@@ -133,7 +133,7 @@ type
 
     function prepareToRunTests : TTestSession; virtual; abstract; // get ready to run tests - do whatever is requred (e.g. compile in the ide)
 
-    procedure runTest(session : TTestSession; node : TTestNode; allTests : TTestNodeList); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
+    procedure runTest(session : TTestSession; node : TTestNode); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
     procedure terminateTests; virtual; abstract; // terminate the tests without waiting for clean up. called from a different thread to runTest, which will still be in progress
     procedure finishTestRun(session : TTestSession); virtual; abstract; // clean up after a test run (must free session)
   end;

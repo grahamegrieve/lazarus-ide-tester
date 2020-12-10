@@ -1,12 +1,11 @@
 object TesterForm: TTesterForm
   Left = 1361
-  Height = 1214
+  Height = 694
   Top = 78
-  Width = 768
+  Width = 439
   Caption = 'FPC Test Runner'
-  ClientHeight = 1214
-  ClientWidth = 768
-  DesignTimePPI = 168
+  ClientHeight = 694
+  ClientWidth = 439
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -15,9 +14,9 @@ object TesterForm: TTesterForm
   LCLVersion = '2.1.0.0'
   object ToolBar1: TToolBar
     Left = 0
-    Height = 46
+    Height = 26
     Top = 0
-    Width = 768
+    Width = 439
     Caption = 'ToolBar1'
     Images = ilMain
     ParentFont = False
@@ -25,56 +24,56 @@ object TesterForm: TTesterForm
     ShowHint = True
     TabOrder = 0
     object ToolButton1: TToolButton
-      Left = 49
+      Left = 55
       Top = 2
       Action = actTestRunAll1
     end
     object ToolButton2: TToolButton
-      Left = 89
+      Left = 32
       Top = 2
       Action = actTestRunSelected
     end
     object ToolButton3: TToolButton
-      Left = 129
+      Left = 78
       Top = 2
       Action = actionTestRunFailed
     end
     object ToolButton4: TToolButton
-      Left = 169
+      Left = 101
       Top = 2
       Action = actionTestStop
     end
     object ToolButton5: TToolButton
-      Left = 297
-      Height = 39
+      Left = 178
+      Height = 22
       Top = 2
       Caption = 'ToolButton5'
       Style = tbsSeparator
     end
     object ToolButton6: TToolButton
-      Left = 305
+      Left = 186
       Top = 2
       Action = actionTestCopy
     end
     object ToolButton7: TToolButton
-      Left = 345
+      Left = 209
       Top = 2
       Action = actionTestReset
     end
     object ToolButton8: TToolButton
-      Left = 209
-      Height = 39
+      Left = 124
+      Height = 22
       Top = 2
       Caption = 'ToolButton8'
       Style = tbsSeparator
     end
     object ToolButton9: TToolButton
-      Left = 217
+      Left = 132
       Top = 2
       Action = actionTestSelectAll
     end
     object ToolButton10: TToolButton
-      Left = 257
+      Left = 155
       Top = 2
       Action = actionTestUnselectAll
     end
@@ -84,42 +83,42 @@ object TesterForm: TTesterForm
       Action = actionTestReload
     end
     object tbBtnReloadSep: TToolButton
-      Left = 41
-      Height = 39
+      Left = 24
+      Height = 22
       Top = 2
       Caption = 'tbBtnReloadSep'
       Style = tbsSeparator
     end
     object tbBtnConfigureSep: TToolButton
-      Left = 385
-      Height = 39
+      Left = 232
+      Height = 22
       Top = 2
       Caption = 'tbBtnConfigureSep'
       Style = tbsSeparator
     end
     object tbBtnConfigure: TToolButton
-      Left = 393
+      Left = 240
       Top = 2
       Action = actionTestConfigure
     end
   end
   object Panel1: TPanel
     Left = 0
-    Height = 49
-    Top = 46
-    Width = 768
+    Height = 28
+    Top = 26
+    Width = 439
     Align = alTop
     BevelOuter = bvNone
     BorderWidth = 4
-    ClientHeight = 49
-    ClientWidth = 768
+    ClientHeight = 28
+    ClientWidth = 439
     ParentFont = False
     TabOrder = 1
     object pbBar: TPaintBox
       Left = 4
-      Height = 41
+      Height = 20
       Top = 4
-      Width = 760
+      Width = 431
       Align = alClient
       ParentFont = False
       OnPaint = pbBarPaint
@@ -127,9 +126,9 @@ object TesterForm: TTesterForm
   end
   object tvTests: TLazVirtualStringTree
     Left = 0
-    Height = 1081
-    Top = 95
-    Width = 768
+    Height = 618
+    Top = 54
+    Width = 439
     Align = alClient
     DefaultText = 'Node'
     Header.AutoSizeIndex = 0
@@ -142,34 +141,33 @@ object TesterForm: TTesterForm
     TreeOptions.MiscOptions = [toAcceptOLEDrop, toCheckSupport, toFullRepaintOnResize, toInitOnSave, toToggleOnDblClick, toWheelPanning]
     TreeOptions.SelectionOptions = [toFullRowSelect, toRightClickSelect]
     OnAddToSelection = tvTestsAddToSelection
-    OnChecked = tvTestsChecked
     OnGetText = tvTestsGetText
     OnGetImageIndex = tvTestsGetImageIndex
     OnRemoveFromSelection = tvTestsRemoveFromSelection
   end
   object Panel2: TPanel
     Left = 0
-    Height = 38
-    Top = 1176
-    Width = 768
+    Height = 22
+    Top = 672
+    Width = 439
     Align = alBottom
-    ClientHeight = 38
-    ClientWidth = 768
+    ClientHeight = 22
+    ClientWidth = 439
     ParentFont = False
     TabOrder = 3
     object lblStatus: TLabel
-      Left = 7
-      Height = 30
-      Top = 7
-      Width = 78
+      Left = 4
+      Height = 15
+      Top = 4
+      Width = 45
       Caption = 'lblStatus'
       ParentColor = False
       ParentFont = False
     end
   end
   object ilMain: TImageList
-    Left = 56
-    Top = 116
+    Left = 32
+    Top = 66
     Bitmap = {
       4C7A110000001000000010000000F71100000000000078DAED9A07541459D6C7
       7BCCCBA4DDB38E302098101C9261C63CCAC8184751C738288A6B181D3341A268
@@ -320,8 +318,8 @@ object TesterForm: TTesterForm
   end
   object ActionList1: TActionList
     Images = ilMain
-    Left = 56
-    Top = 210
+    Left = 32
+    Top = 120
     object actTestRunAll1: TAction
       Category = 'Testing'
       Caption = 'Run All Checked Tests'
@@ -394,8 +392,8 @@ object TesterForm: TTesterForm
   end
   object pmTests: TPopupMenu
     Images = ilMain
-    Left = 158
-    Top = 214
+    Left = 90
+    Top = 122
     object MenuItem3: TMenuItem
       Action = actTestRunSelected
     end
@@ -410,8 +408,8 @@ object TesterForm: TTesterForm
     end
   end
   object ilOutcomes: TImageList
-    Left = 158
-    Top = 119
+    Left = 90
+    Top = 68
     Bitmap = {
       4C7A0800000010000000100000009C0800000000000078DAED986D6C53E715C7
       9F186C96561D934AD2569AA67D99B4D27D9A56F169850642A0A55D3394565BF9
@@ -489,7 +487,7 @@ object TesterForm: TTesterForm
     Enabled = False
     Interval = 50
     OnTimer = Timer1Timer
-    Left = 56
-    Top = 319
+    Left = 32
+    Top = 182
   end
 end

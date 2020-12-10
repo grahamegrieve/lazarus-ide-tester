@@ -27,10 +27,12 @@ type
   TTestEngineDirectListener = class (TinterfacedObject, ITestListener)
   private
     FListener : TTestListener;
-    FAllTests : TTestNodeList;
+    FRoot : TTestNode;
+    function findTestInNode(test : TTest; node : TTestNode) : TTestNode;
+    function findNode(test : TTest; optional : boolean = false) : TTestNode;
+    function makeError(err : TTestFailure) : TTestError;
   public
-    constructor create(listener : TTestListener; allTests : TTestNodeList);
-    property listener : TTestListener read FListener write FListener;
+    constructor create(listener : TTestListener; root : TTestNode);
 
     procedure StartTest(ATest: TTest);
     procedure EndTest(ATest: TTest);
@@ -44,7 +46,7 @@ type
 
   TTestEngineDirect = class (TTestEngine)
   private
-    Function registerTestNode(factory : TNodeFactory; parent : TTestNode; test : TTest; name : String) : TTestNode;
+    Function registerTestNode(factory : TNodeFactory; parent : TTestNode; test : TTest) : TTestNode;
     procedure BuildTree(factory : TNodeFactory; rootTest: TTestNode; aSuite: TTestSuite);
   public
     procedure loadAllTests(factory : TNodeFactory); override;
@@ -53,13 +55,106 @@ type
     function doesReload : boolean; override;
 
     function prepareToRunTests : TTestSession; override;
-    procedure runTest(session : TTestSession; node : TTestNode; allTests : TTestNodeList); override;
+    procedure runTest(session : TTestSession; node : TTestNode); override;
     procedure terminateTests; override;
     procedure finishTestRun(session : TTestSession); override;
   end;
 
 
 implementation
+
+{ TTestEngineDirectListener }
+
+constructor TTestEngineDirectListener.create(listener: TTestListener; root: TTestNode);
+begin
+  inherited Create;
+  FListener := listener;
+  FRoot := root;
+end;
+
+function TTestEngineDirectListener.findTestInNode(test: TTest; node: TTestNode): TTestNode;
+var
+  child, t : TTestNode;
+begin
+  if node.Data = test then
+    result := node
+  else
+  begin
+    result := nil;
+    for child in node.children do
+    begin
+      t := findTestInNode(test, child);
+      if (t <> nil) then
+        exit(t);
+    end;
+  end;
+end;
+
+function TTestEngineDirectListener.findNode(test : TTest; optional : boolean) : TTestNode;
+begin
+  result := findTestInNode(test, FRoot);
+  if (result = nil) and not optional then
+    raise Exception.create('Test not found!'); // this really shouldn't happen
+end;
+
+function TTestEngineDirectListener.makeError(err : TTestFailure) : TTestError;
+begin
+  result := TTestError.create;
+  result.ExceptionClass := err.ExceptionClass.ClassName;
+  result.ExceptionMessage := err.ExceptionMessage;
+end;
+
+procedure TTestEngineDirectListener.StartTest(ATest: TTest);
+begin
+  FListener.StartTest(findNode(ATest));
+end;
+
+procedure TTestEngineDirectListener.EndTest(ATest: TTest);
+begin
+  FListener.EndTest(findNode(ATest));
+end;
+
+procedure TTestEngineDirectListener.StartTestSuite(ATestSuite: TTestSuite);
+var
+  node : TTestNode;
+begin
+  node := findNode(ATestSuite, true);
+  if (node <> nil) then
+    FListener.StartTestSuite(node);
+end;
+
+procedure TTestEngineDirectListener.EndTestSuite(ATestSuite: TTestSuite);
+var
+  node : TTestNode;
+begin
+  node := findNode(ATestSuite, true);
+  if (node <> nil) then
+    FListener.EndTestSuite(node);
+end;
+
+procedure TTestEngineDirectListener.AddFailure(ATest: TTest; AFailure: TTestFailure);
+var
+  err : TTestError;
+begin
+  err := makeError(aFailure);
+  try
+    FListener.TestFailure(findNode(ATest), err);
+  finally
+    err.Free;
+  end;
+end;
+
+procedure TTestEngineDirectListener.AddError(ATest: TTest; AError: TTestFailure);
+var
+  err : TTestError;
+begin
+  err := makeError(aError);
+  try
+    FListener.TestError(findNode(ATest), err);
+  finally
+    err.Free;
+  end;
+end;
 
 { TTestSessionDirect }
 
@@ -88,11 +183,11 @@ var
   node : TTestNode;
 begin
   test := GetTestRegistry;
-  node := registerTestNode(factory, nil, test, rsAllTests);
+  node := registerTestNode(factory, nil, test);
   BuildTree(factory, node, test);
 end;
 
-function TTestEngineDirect.registerTestNode(factory : TNodeFactory; parent: TTestNode; test: TTest; name: String): TTestNode;
+function TTestEngineDirect.registerTestNode(factory : TNodeFactory; parent: TTestNode; test: TTest): TTestNode;
 begin
   result := factory(parent);
   if (parent <> nil) then
@@ -114,7 +209,7 @@ begin
     if (ASuite.Test[i].TestName = '') and (ASuite.ChildTestCount = 1) then
       test := rootTest
     else
-      test := registerTestNode(factory, rootTest, ASuite.Test[i], ASuite.Test[i].TestName);
+      test := registerTestNode(factory, rootTest, ASuite.Test[i]);
 
     if ASuite.Test[i] is TTestSuite then
       BuildTree(factory, test, TTestSuite(ASuite.Test[i]))
@@ -143,12 +238,12 @@ begin
   result := TTestSessionDirect.Create;
 end;
 
-procedure TTestEngineDirect.runTest(session: TTestSession; node: TTestNode; allTests : TTestNodeList);
+procedure TTestEngineDirect.runTest(session: TTestSession; node: TTestNode);
 var
   sess : TTestSessionDirect;
   listenerProxy : ITestListener;
 begin
-  listenerProxy := TTestEngineDirectListener.create(listener, allTests) as ITestListener;
+  listenerProxy := TTestEngineDirectListener.create(listener, node) as ITestListener;
 
   sess := session as TTestSessionDirect;
   try

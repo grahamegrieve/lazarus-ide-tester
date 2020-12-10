@@ -1,3 +1,7 @@
 /project/backup
 /project/lib/x86_64-win64
 /source/backup
+/package/lib/x86_64-win64
+/project/*.exe
+/project/*.lps
+/package/backup

@@ -1,4 +1,4 @@
-program project1;
+program idetester_standalone;
 
 {$mode objfpc}{$H+}
 
@@ -10,8 +10,7 @@ uses
   athreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, idetester_form, idetester_options, idetester_base, idetester_direct,
-  idetester_ini, idetester_tests;
+  Forms, idetester_tests, idetester_form;
 
 {$R *.res}
 

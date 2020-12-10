@@ -6,9 +6,8 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ComCtrls, ExtCtrls,
-  StdCtrls, ActnList, Menus, IniFiles, LCLIntf, laz.VirtualTrees, ClipBrd,
+  StdCtrls, ActnList, Menus, LCLIntf, laz.VirtualTrees, ClipBrd,
   Generics.Collections,
-  fpcunit, testregistry, testdecorator,
   idetester_options, idetester_base, idetester_strings, idetester_direct, idetester_ini;
 
 const
@@ -32,17 +31,39 @@ type
   private
     node : TTestNode;
     event : TTestEventKind;
-    duration : Cardinal;
     excMessage : String;
     excClass : String;
   end;
   TTestEventQueue = class (TObjectList<TTestEvent>);
 
+  TTesterForm = class;
+
   { TTestThread }
 
   TTestThread = class (TThread)
+  private
+    FTester : TTesterForm;
   protected
     procedure execute; override;
+  public
+    constructor Create(tester : TTesterForm);
+  end;
+
+  { TTesterFormListener }
+
+  TTesterFormListener  = class (TTestListener)
+  private
+    FTester : TTesterForm;
+  public
+    constructor Create(tester : TTesterForm);
+
+    procedure StartTest(test: TTestNode); override;
+    procedure EndTest(test: TTestNode); override;
+    procedure TestFailure(test: TTestNode; fail: TTestError); override;
+    procedure TestError(test: TTestNode; error: TTestError); override;
+    procedure StartTestSuite(test: TTestNode); override;
+    procedure EndTestSuite(test: TTestNode); override;
+    procedure EndRun(test: TTestNode); override;
   end;
 
   { TTesterForm }
@@ -102,7 +123,6 @@ type
     procedure pbBarPaint(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
-    procedure tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
     procedure tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
     procedure tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -122,57 +142,102 @@ type
     FThread : TTestThread;
     FKillTime : cardinal;
 
-    procedure LoadTree;
-    procedure BuildTree(rootTest: TTestNode; aSuite: TTestSuite);
-    Function registerTestNode(parent : TTestNode; test : TTest; name : String) : TTestNode;
+    // -- utils ----
+    function tn(p: PVirtualNode): TTestNode;
+    procedure UpdateTotals;
 
+    // -- init ----
+    procedure LoadTree;
+    function nodeFactory(parent : TTestNode) : TTestNode;
+    procedure refreshNode(test : TTestNode);
     procedure loadState;
     procedure saveState;
 
-    procedure setDoExecute(node: TTestNode);
-    procedure setDoExecuteParent(node: TTestNode);
+    // -- checkbox mgmt ----
     procedure setTestState(node: TTestNode; state : TTestCheckState);
     procedure checkStateOfChildren(node: TTestNode);
+
+    // -- running tests ----
+    procedure setDoExecute(node: TTestNode);
+    procedure setDoExecuteParent(node: TTestNode);
     procedure setActionStatus(running : boolean);
     procedure StartTestRun;
     procedure DoExecuteTests; // in alternative thread
     procedure FinishTestRun;
-    function tn(p: PVirtualNode): TTestNode;
-    procedure UpdateTotals;
     procedure queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
     procedure killRunningTests;
-    procedure AddFailure(ATest: TTest; AFailure: TTestFailure);
-    procedure AddError(ATest: TTest; AError: TTestFailure);
-    procedure StartTest(ATest: TTest);
-    procedure EndTest(ATest: TTest);
-    procedure StartTestSuite(ATestSuite: TTestSuite);
-    procedure EndTestSuite(ATestSuite: TTestSuite); overload;
-    procedure EndTestSuite(ATest: TTestNode); overload;
-    procedure EndAll(ATest: TTestNode);
-    function nodeFactory(parent : TTestNode) : TTestNode;
+    procedure EndTestSuite(ATest: TTestNode);
   public
     // these two must be set before the Form is shown
     property engine : TTestEngine read FEngine write FEngine;
-    property store : TTestSettingsProvider read FStore write FStore;
+    property store : TTestSettingsProvider read FStore write FStore; // either an ini in AppConfig, or stored in the project settings somewhere?
   end;
 
-var
-  TesterForm: TTesterForm;
+var TesterForm : TTesterForm;
 
 implementation
 
 {$R *.lfm}
 
+{ TTesterFormListener }
 
+constructor TTesterFormListener.Create(tester: TTesterForm);
+begin
+  inherited Create;
+  FTester := tester;
+end;
+
+procedure TTesterFormListener.StartTest(test: TTestNode);
+begin
+  test.start;
+  FTester.queueEvent(test, tekStart, '', '');
+end;
+
+procedure TTesterFormListener.EndTest(test: TTestNode);
+begin
+  test.finish;
+  FTester.queueEvent(test, tekEnd, '', '');
+end;
+
+procedure TTesterFormListener.TestFailure(test: TTestNode; fail: TTestError);
+begin
+  FTester.queueEvent(test, tekFail, fail.ExceptionMessage, fail.ExceptionClass);
+end;
+
+procedure TTesterFormListener.TestError(test: TTestNode; error: TTestError);
+begin
+  FTester.queueEvent(test, tekError, error.ExceptionMessage, error.ExceptionClass);
+end;
+
+procedure TTesterFormListener.StartTestSuite(test: TTestNode);
+begin
+  FTester.queueEvent(test, tekStartSuite, '', '');
+end;
+
+procedure TTesterFormListener.EndTestSuite(test: TTestNode);
+begin
+  FTester.queueEvent(test, tekFinishSuite, '', '');
+end;
+
+procedure TTesterFormListener.EndRun(test: TTestNode);
+begin
+  FTester.queueEvent(test, tekEndRun, '', '');
+end;
 
 { TTestThread }
 
 procedure TTestThread.execute;
 begin
   try
-    TesterForm.DoExecuteTests;
+    FTester.DoExecuteTests;
   except
   end;
+end;
+
+constructor TTestThread.Create(tester: TTesterForm);
+begin
+  FTester := tester;
+  inherited Create(false);
 end;
 
 { TTesterForm }
@@ -207,6 +272,7 @@ begin
   if engine = nil then
     engine := TTestEngineDirect.create;
 
+  engine.listener := TTesterFormListener.create(self);
   if not engine.doesReload then
   begin
     tbBtnReload.visible := false;
@@ -317,6 +383,12 @@ begin
   p.Node := result;
   result.Node.CheckType := ctTriStateCheckBox;
   result.Node.CheckState := csUncheckedNormal;
+  result.OnUpdate := refreshNode;
+end;
+
+procedure TTesterForm.refreshNode(test: TTestNode);
+begin
+  tvTests.InvalidateNode(test.node);
 end;
 
 procedure TTesterForm.LoadTree;
@@ -488,7 +560,7 @@ begin
   begin
     FRunningTest := FTestInfo[0];
     StartTestRun;
-    FThread := TTestThread.create(false);
+    FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end
   else
@@ -513,7 +585,7 @@ begin
         inc(FTestsTotal);
     FRunningTest := node;
     StartTestRun;
-    FThread := TTestThread.create(false);
+    FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end;
 end;
@@ -543,7 +615,7 @@ begin
   begin
     FRunningTest := FTestInfo[0];
     StartTestRun;
-    FThread := TTestThread.create(false);
+    FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end
   else
@@ -727,6 +799,7 @@ begin
       toPass : if outcome = toUnknown then outcome := toPass else if outcome = toUnknown then outcome := toSomePass;
       toFail: if outcome <> toError then outcome := toFail;
       toError: outcome := toError;
+    else
     end;
   end;
   ATest.outcome := outcome;
@@ -747,7 +820,7 @@ begin
   timer1.Enabled := true;
 
   FSession := engine.prepareToRunTests;
-  for ti in TesterForm.FTestInfo do
+  for ti in FTestInfo do
     if not ti.execute then
       FSession.skipTest(ti);
 end;
@@ -810,74 +883,10 @@ end;
 procedure TTesterForm.killRunningTests;
 begin
   KillThread(FThread.Handle);
-  if (FRunningTest.Test is TTestSuite) then
-    EndTestSuite(FRunningTest.test as TTestSuite);
-  EndAll(FRunningTest);
+  if (not FRunningTest.hasChildren) then
+    EndTestSuite(FRunningTest);
+  queueEvent(FRunningTest, tekEndRun, '', '');
 end;
-
-procedure TTesterForm.StartTest(ATest: TTest);
-var
-  ti : TTestNode;
-begin
-  ti := FTestInfo.forTest(aTest);
-  ti.start;
-  queueEvent(ti, tekStart, '', '');
-end;
-
-procedure TTesterForm.EndTest(ATest: TTest);
-var
-  ti : TTestNode;
-begin
-  ti := FTestInfo.forTest(aTest);
-  ti.finish;
-  queueEvent(ti, tekEnd, '', '');
-end;
-
-procedure TTesterForm.AddFailure(ATest: TTest; AFailure: TTestFailure);
-var
-  ti : TTestNode;
-begin
-  ti := FTestInfo.forTest(aTest);
-  queueEvent(ti, tekFail, AFailure.ExceptionMessage, AFailure.ExceptionClassName);
-end;
-
-procedure TTesterForm.AddError(ATest: TTest; AError: TTestFailure);
-var
-  ti : TTestNode;
-begin
-  ti := FTestInfo.forTest(aTest);
-  queueEvent(ti, tekError, AError.ExceptionMessage, AError.ExceptionClassName);
-end;
-
-procedure TTesterForm.StartTestSuite(ATestSuite: TTestSuite);
-var
-  ti : TTestNode;
-begin
-  ti := FTestInfo.forTest(ATestSuite);
-  if (ti <> nil) then
-  begin
-    ti.start;
-    queueEvent(ti, tekStartSuite, '', '');
-  end;
-end;
-
-procedure TTesterForm.EndTestSuite(ATestSuite: TTestSuite);
-var
-  ti : TTestNode;
-begin
-  ti := FTestInfo.forTest(ATestSuite);
-  if (ti <> nil) then
-  begin
-    ti.finish;
-    queueEvent(ti, tekFinishSuite, '', '');
-  end;
-end;
-
-procedure TTesterForm.EndAll(ATest: TTestNode);
-begin
-  queueEvent(ATest, tekEndRun, '', '');
-end;
-
 
 end.
 

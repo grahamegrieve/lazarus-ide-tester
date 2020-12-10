@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="idetester"/>
+    <Type Value="RunAndDesignTime"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="..\source"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Files>
+      <Item>
+        <Filename Value="..\source\idetester_runtime.pas"/>
+        <UnitName Value="idetester_runtime"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_base.pas"/>
+        <UnitName Value="idetester_base"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_direct.pas"/>
+        <UnitName Value="idetester_direct"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_form.pas"/>
+        <UnitName Value="idetester_form"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_ini.pas"/>
+        <UnitName Value="idetester_ini"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_options.pas"/>
+        <UnitName Value="idetester_options"/>
+        <ResourceBaseClass Value="Form"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_strings.pas"/>
+        <UnitName Value="idetester_strings"/>
+      </Item>
+      <Item>
+        <Filename Value="..\source\idetester_tests.pas"/>
+        <UnitName Value="idetester_tests"/>
+      </Item>
+    </Files>
+    <RequiredPkgs>
+      <Item>
+        <PackageName Value="laz.virtualtreeview_package"/>
+      </Item>
+      <Item>
+        <PackageName Value="FCL"/>
+      </Item>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
