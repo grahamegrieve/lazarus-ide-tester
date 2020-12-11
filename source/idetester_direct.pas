@@ -10,7 +10,6 @@ uses
   idetester_base, idetester_strings;
 
 type
-
   { TTestSessionDirect }
 
   TTestSessionDirect = class (TTestSession)
@@ -53,9 +52,10 @@ type
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
+    function canDebug : boolean; override;
 
     function prepareToRunTests : TTestSession; override;
-    procedure runTest(session : TTestSession; node : TTestNode); override;
+    procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); override;
     procedure terminateTests; override;
     procedure finishTestRun(session : TTestSession); override;
   end;
@@ -233,12 +233,17 @@ begin
   result := false;
 end;
 
+function TTestEngineDirect.canDebug: boolean;
+begin
+  result := false;
+end;
+
 function TTestEngineDirect.prepareToRunTests: TTestSession;
 begin
   result := TTestSessionDirect.Create;
 end;
 
-procedure TTestEngineDirect.runTest(session: TTestSession; node: TTestNode);
+procedure TTestEngineDirect.runTest(session: TTestSession; node: TTestNode; debug : boolean);
 var
   sess : TTestSessionDirect;
   listenerProxy : ITestListener;

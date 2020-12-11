@@ -26,6 +26,7 @@ type
     FExceptionClassName: string;
     FExceptionMessage: string;
     FLineNumber: longint;
+    FOwnsData: boolean;
     FParent : TTestNode;
     FChildren : TTestNodeList;
     FSourceUnitName: string;
@@ -50,6 +51,7 @@ type
     destructor Destroy; override;
 
     property Data : TObject read FData write FData;
+    property ownsData : boolean read FOwnsData write FOwnsData;
     property node : PVirtualNode read FNode write FNode;
     property checkState : TTestCheckState read GetCheckState write SetCheckState;
     property outcome : TTestOutcome read FOutcome write SetOutcome;
@@ -129,11 +131,12 @@ type
     function threadMode : TTestEngineThreadMode; virtual; abstract;
 
     function canTerminate : boolean; virtual; abstract; // true if it's ok to call terminateTests
+    function canDebug : boolean; virtual; abstract;
     function doesReload : boolean; virtual; abstract;
 
     function prepareToRunTests : TTestSession; virtual; abstract; // get ready to run tests - do whatever is requred (e.g. compile in the ide)
 
-    procedure runTest(session : TTestSession; node : TTestNode); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
+    procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
     procedure terminateTests; virtual; abstract; // terminate the tests without waiting for clean up. called from a different thread to runTest, which will still be in progress
     procedure finishTestRun(session : TTestSession); virtual; abstract; // clean up after a test run (must free session)
   end;
@@ -153,6 +156,8 @@ end;
 
 destructor TTestNode.Destroy;
 begin
+  if FOwnsData then
+    FData.Free;
   FChildren.Free;
   inherited Destroy;
 end;

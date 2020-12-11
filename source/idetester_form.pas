@@ -43,10 +43,11 @@ type
   TTestThread = class (TThread)
   private
     FTester : TTesterForm;
+    FDebug : boolean;
   protected
     procedure execute; override;
   public
-    constructor Create(tester : TTesterForm);
+    constructor Create(tester : TTesterForm; debug : boolean);
   end;
 
   { TTesterFormListener }
@@ -68,6 +69,7 @@ type
 
   { TTesterForm }
   TTesterForm = class(TForm)
+    actTestDebugSelected: TAction;
     actionTestConfigure: TAction;
     actionTestReload: TAction;
     actionTestSelectAll: TAction;
@@ -83,12 +85,13 @@ type
     ilOutcomes: TImageList;
     lblStatus: TLabel;
     MenuItem4: TMenuItem;
+    mnuDebug: TMenuItem;
     Panel2: TPanel;
     Timer1: TTimer;
     tbBtnReload: TToolButton;
     tbBtnReloadSep: TToolButton;
-    tbBtnConfigureSep: TToolButton;
     tbBtnConfigure: TToolButton;
+    tbBtnDebug: TToolButton;
     tvTests: TLazVirtualStringTree;
     MenuItem3: TMenuItem;
     MenuItem1: TMenuItem;
@@ -109,6 +112,7 @@ type
     ToolButton9: TToolButton;
     procedure actionTestConfigureExecute(Sender: TObject);
     procedure actionTestCopyExecute(Sender: TObject);
+    procedure actTestDebugSelectedExecute(Sender: TObject);
     procedure actionTestResetExecute(Sender: TObject);
     procedure actionTestRunFailedExecute(Sender: TObject);
     procedure actionTestSelectAllExecute(Sender: TObject);
@@ -162,7 +166,7 @@ type
     procedure setDoExecuteParent(node: TTestNode);
     procedure setActionStatus(running : boolean);
     procedure StartTestRun;
-    procedure DoExecuteTests; // in alternative thread
+    procedure DoExecuteTests(debug : boolean); // in alternative thread
     procedure FinishTestRun;
     procedure queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
     procedure killRunningTests;
@@ -229,14 +233,15 @@ end;
 procedure TTestThread.execute;
 begin
   try
-    FTester.DoExecuteTests;
+    FTester.DoExecuteTests(FDebug);
   except
   end;
 end;
 
-constructor TTestThread.Create(tester: TTesterForm);
+constructor TTestThread.Create(tester: TTesterForm; debug : boolean);
 begin
   FTester := tester;
+  FDebug := debug;
   inherited Create(false);
 end;
 
@@ -281,9 +286,12 @@ begin
   if not CAN_CONFIGURE then // todo - should this be the engine that decides this?
   begin
     tbBtnConfigure.visible := false;
-    tbBtnConfigureSep.visible := false;
   end;
-
+  if not engine.canDebug then
+  begin
+    tbBtnDebug.visible := false;
+    mnuDebug.visible := false;
+  end;
   LoadTree;
   LoadState;
   UpdateTotals;
@@ -299,6 +307,7 @@ begin
   actionTestRunFailed.Enabled := not running;
   actTestRunAll1.Enabled := not running;
   actTestRunSelected.Enabled := not running;
+  actTestDebugSelected.Enabled := not running;
 end;
 
 // -- Tree Management ----------------------------------------------------------
@@ -407,22 +416,26 @@ begin
   if FSelectedNode.hasChildren then
   begin
     actTestRunSelected.caption := 'Run these tests';
+    actTestDebugSelected.caption := 'Debug these tests';
     actionTestSelectAll.caption := 'Check these tests';
     actionTestUnselectAll.caption := 'Uncheck these tests';
     actionTestSelectAll.hint := 'Check selected tests + children';
     actionTestUnselectAll.hint := 'Uncheck selected tests + children';
     actionTestCopy.hint := 'Copy results to clipboard for selected tests';
     actTestRunSelected.caption := 'Run Selected Test + children';
+    actTestDebugSelected.caption := 'Debug Selected Test + children';
   end
   else
   begin
     actTestRunSelected.caption := 'Run this test';
+    actTestRunSelected.caption := 'Debug this test';
     actionTestSelectAll.caption := 'Check this test';
     actionTestUnselectAll.caption := 'Uncheck this test';
     actionTestSelectAll.hint := 'Check selected test';
     actionTestUnselectAll.hint := 'Uncheck selected test';
     actionTestCopy.hint := 'Copy results to clipboard for selected test';
     actTestRunSelected.caption := 'Run Selected Test';
+    actTestDebugSelected.caption := 'Debug Selected Test';
   end;
   UpdateTotals;
 end;
@@ -560,7 +573,7 @@ begin
   begin
     FRunningTest := FTestInfo[0];
     StartTestRun;
-    FThread := TTestThread.create(self);
+    FThread := TTestThread.create(self, false);
     FThread.FreeOnTerminate := true;
   end
   else
@@ -585,7 +598,7 @@ begin
         inc(FTestsTotal);
     FRunningTest := node;
     StartTestRun;
-    FThread := TTestThread.create(self);
+    FThread := TTestThread.create(self, false);
     FThread.FreeOnTerminate := true;
   end;
 end;
@@ -615,7 +628,7 @@ begin
   begin
     FRunningTest := FTestInfo[0];
     StartTestRun;
-    FThread := TTestThread.create(self);
+    FThread := TTestThread.create(self, false);
     FThread.FreeOnTerminate := true;
   end
   else
@@ -844,6 +857,29 @@ begin
   Clipboard.AsText := FSelectedNode.details('');
 end;
 
+procedure TTesterForm.actTestDebugSelectedExecute(Sender: TObject);
+var
+  node, ti : TTestNode;
+begin
+  for ti in FTestInfo do
+    ti.execute := false;
+  Node := FSelectedNode;
+  if node <> nil then
+  begin
+    setDoExecute(node);
+    setDoExecuteParent(node.Parent);
+
+    FTestsTotal := 0;
+    for ti in FTestInfo do
+      if ti.execute and (not ti.hasChildren) then
+        inc(FTestsTotal);
+    FRunningTest := node;
+    StartTestRun;
+    FThread := TTestThread.create(self, true);
+    FThread.FreeOnTerminate := true;
+  end;
+end;
+
 procedure TTesterForm.actionTestConfigureExecute(Sender: TObject);
 begin
   IDETesterSettings := TIDETesterSettings.create(self);
@@ -856,9 +892,9 @@ end;
 
 // -- test thread  - no UI access ----------------------------------------------
 
-procedure TTesterForm.DoExecuteTests;
+procedure TTesterForm.DoExecuteTests(debug : boolean);
 begin
-  engine.runTest(FSession, FRunningTest);
+  engine.runTest(FSession, FRunningTest, debug);
 end;
 
 procedure TTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);

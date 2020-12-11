@@ -10,7 +10,7 @@ interface
 uses
   idetester_runtime, idetester_base, idetester_direct, idetester_form, 
   idetester_ini, idetester_options, idetester_strings, idetester_tests, 
-  LazarusPackageIntf;
+  idetester_external, LazarusPackageIntf;
 
 implementation
 
