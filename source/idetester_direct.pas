@@ -56,7 +56,7 @@ type
 
     function prepareToRunTests : TTestSession; override;
     procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); override;
-    procedure terminateTests; override;
+    procedure terminateTests(session: TTestSession); override;
     procedure finishTestRun(session : TTestSession); override;
   end;
 

@@ -26,7 +26,7 @@ object TesterForm: TTesterForm
     object ToolButton1: TToolButton
       Left = 132
       Top = 2
-      Action = actTestRunAll1
+      Action = actTestRunChecked
     end
     object ToolButton2: TToolButton
       Left = 32
@@ -337,19 +337,19 @@ object TesterForm: TTesterForm
     Images = ilMain
     Left = 32
     Top = 120
-    object actTestRunAll1: TAction
-      Category = 'Testing'
-      Caption = 'Run All Checked Tests'
-      Hint = 'Run All Checked Tests'
-      ImageIndex = 0
-      OnExecute = actTestRunAll1Execute
-    end
     object actTestRunSelected: TAction
       Category = 'Testing'
       Caption = 'Run Selected tests'
       Hint = 'Run Selected test + children'
       ImageIndex = 1
       OnExecute = actTestRunSelectedExecute
+    end
+    object actTestRunChecked: TAction
+      Category = 'Testing'
+      Caption = 'Run All Checked Tests'
+      Hint = 'Run All Checked Tests'
+      ImageIndex = 0
+      OnExecute = actTestRunCheckedExecute
     end
     object actionTestRunFailed: TAction
       Category = 'Testing'
@@ -398,6 +398,7 @@ object TesterForm: TTesterForm
       Caption = 'Reload Test List'
       Hint = 'Load the list of tests again'
       ImageIndex = 15
+      OnExecute = actionTestReloadExecute
     end
     object actionTestConfigure: TAction
       Category = 'Testing'

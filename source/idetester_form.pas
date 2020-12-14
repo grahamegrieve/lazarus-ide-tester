@@ -78,7 +78,7 @@ type
     actionTestCopy: TAction;
     actionTestStop: TAction;
     actionTestRunFailed: TAction;
-    actTestRunAll1: TAction;
+    actTestRunChecked: TAction;
     actTestRunSelected: TAction;
     ActionList1: TActionList;
     ilMain: TImageList;
@@ -112,13 +112,14 @@ type
     ToolButton9: TToolButton;
     procedure actionTestConfigureExecute(Sender: TObject);
     procedure actionTestCopyExecute(Sender: TObject);
+    procedure actionTestReloadExecute(Sender: TObject);
     procedure actTestDebugSelectedExecute(Sender: TObject);
     procedure actionTestResetExecute(Sender: TObject);
     procedure actionTestRunFailedExecute(Sender: TObject);
     procedure actionTestSelectAllExecute(Sender: TObject);
     procedure actionTestStopExecute(Sender: TObject);
     procedure actionTestUnselectAllExecute(Sender: TObject);
-    procedure actTestRunAll1Execute(Sender: TObject);
+    procedure actTestRunCheckedExecute(Sender: TObject);
     procedure actTestRunSelectedExecute(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
@@ -249,11 +250,9 @@ end;
 
 procedure TTesterForm.FormCreate(Sender: TObject);
 begin
-  FTestInfo := TTestNodeList.create;
-  FTestInfo.OwnsObjects := true;
+  FTestInfo := TTestNodeList.create(true);
   InitCriticalSection(FLock);
-  FIncoming := TTestEventQueue.create;
-  FIncoming.OwnsObjects := false;
+  FIncoming := TTestEventQueue.create(false);
 
   pbBarPaint(pbBar);
   setActionStatus(false);
@@ -292,9 +291,7 @@ begin
     tbBtnDebug.visible := false;
     mnuDebug.visible := false;
   end;
-  LoadTree;
-  LoadState;
-  UpdateTotals;
+  actionTestReloadExecute(self);
 end;
 
 procedure TTesterForm.setActionStatus(running: boolean);
@@ -305,7 +302,7 @@ begin
   actionTestReset.Enabled := not running;
   actionTestStop.Enabled := running;
   actionTestRunFailed.Enabled := not running;
-  actTestRunAll1.Enabled := not running;
+  actTestRunChecked.Enabled := not running;
   actTestRunSelected.Enabled := not running;
   actTestDebugSelected.Enabled := not running;
 end;
@@ -324,6 +321,7 @@ procedure TTesterForm.UpdateTotals;
 var
   tc, pc, ec, fc, nr, cc : cardinal;
   tn : TTestNode;
+  res : boolean;
   s : String;
 begin
   if ((FRunningTest <> nil) or FShuttingDown) then
@@ -335,6 +333,7 @@ begin
   nr := 0;
   cc := 0;
   pc := 0;
+  res := false;
   for tn in FTestInfo do
   begin
     if not tn.hasChildren then
@@ -349,6 +348,7 @@ begin
       else //  toNotRun
         inc(nr);
       end;
+      res := res or not (tn.outcome in [toUnknown, toNotRun]);
     end;
   end;
 
@@ -364,6 +364,17 @@ begin
   if (ec + fc + nr = 0) then
     s := s + ' - All OK✓';
   lblStatus.caption := s;
+
+  actTestRunSelected.enabled := tc > 0;
+  actTestDebugSelected.enabled := tc > 0;
+  actionTestSelectAll.enabled := tc > 0;
+  actionTestUnselectAll.enabled := tc > 0;
+  actionTestSelectAll.enabled := tc > 0;
+  actionTestUnselectAll.enabled := tc > 0;
+  actionTestCopy.enabled := tc > 0;
+  actTestRunChecked.enabled := cc > 0;
+  actionTestRunFailed.enabled := fc + ec > 0;
+  actionTestReset.enabled := res;
 end;
 
 procedure TTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
@@ -402,10 +413,21 @@ end;
 
 procedure TTesterForm.LoadTree;
 begin
+  tvTests.Clear;
+  FTestInfo.Clear;
+  tvTests.Refresh;
   tvTests.NodeDataSize := sizeof(pointer);
   engine.loadAllTests(nodeFactory);
-  tvTests.Selected[FTestInfo[0].node] := true;
-  tvTests.Expanded[FTestInfo[0].node] := true;
+  if FTestInfo.Count > 0 then
+  begin
+
+    tvTests.Selected[FTestInfo[0].node] := true;
+    tvTests.Expanded[FTestInfo[0].node] := true;
+  end
+  else
+  begin
+    tvTestsRemoveFromSelection(nil, nil);
+  end;
 end;
 
 // --- Test Selection Management -----------------------------------------------
@@ -557,7 +579,7 @@ end;
 
 // ---- Test Execution Control -------------------------------------------------
 
-procedure TTesterForm.actTestRunAll1Execute(Sender: TObject);
+procedure TTesterForm.actTestRunCheckedExecute(Sender: TObject);
 var
   ti : TTestNode;
 begin
@@ -716,9 +738,8 @@ var
   ev : TTestEvent;
   ti : TTestNode;
 begin
-  list := TTestEventQueue.create;
+  list := TTestEventQueue.create(true);
   try
-    list.OwnsObjects := true;
     EnterCriticalSection(FLock);
     try
       for ev in FIncoming do
@@ -855,6 +876,13 @@ end;
 procedure TTesterForm.actionTestCopyExecute(Sender: TObject);
 begin
   Clipboard.AsText := FSelectedNode.details('');
+end;
+
+procedure TTesterForm.actionTestReloadExecute(Sender: TObject);
+begin
+  LoadTree;
+  LoadState;
+  UpdateTotals;
 end;
 
 procedure TTesterForm.actTestDebugSelectedExecute(Sender: TObject);

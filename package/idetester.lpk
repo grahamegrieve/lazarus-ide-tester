@@ -50,6 +50,10 @@
         <Filename Value="..\source\idetester_external.pas"/>
         <UnitName Value="idetester_external"/>
       </Item>
+      <Item>
+        <Filename Value="..\source\idetester_ide.pas"/>
+        <UnitName Value="idetester_ide"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>
