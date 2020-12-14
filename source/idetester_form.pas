@@ -11,8 +11,7 @@ uses
   idetester_options, idetester_base, idetester_strings, idetester_direct, idetester_ini;
 
 const
-  KILL_TIME_DELAY = 5000;
-  CAN_CONFIGURE = true;
+  DEFAULT_KILL_TIME_DELAY = 5000;
 
 type
   // for the virtual tree
@@ -23,7 +22,7 @@ type
   end;
   PTestNodeData = ^TTestNodeData;
 
-  TTestEventKind = (tekStartSuite, tekFinishSuite, tekStart, tekEnd, tekFail, tekError, tekEndRun);
+  TTestEventKind = (tekStartSuite, tekFinishSuite, tekStart, tekEnd, tekFail, tekError, tekHalt, tekEndRun);
 
   { TTestEvent }
 
@@ -62,6 +61,7 @@ type
     procedure EndTest(test: TTestNode); override;
     procedure TestFailure(test: TTestNode; fail: TTestError); override;
     procedure TestError(test: TTestNode; error: TTestError); override;
+    procedure TestHalt(test: TTestNode); override; // testing process died completely
     procedure StartTestSuite(test: TTestNode); override;
     procedure EndTestSuite(test: TTestNode); override;
     procedure EndRun(test: TTestNode); override;
@@ -214,6 +214,11 @@ begin
   FTester.queueEvent(test, tekError, error.ExceptionMessage, error.ExceptionClass);
 end;
 
+procedure TTesterFormListener.TestHalt(test: TTestNode);
+begin
+  FTester.queueEvent(test, tekHalt, '', '');
+end;
+
 procedure TTesterFormListener.StartTestSuite(test: TTestNode);
 begin
   FTester.queueEvent(test, tekStartSuite, '', '');
@@ -282,7 +287,7 @@ begin
     tbBtnReload.visible := false;
     tbBtnReloadSep.visible := false;
   end;
-  if not CAN_CONFIGURE then // todo - should this be the engine that decides this?
+  if not (engine.canTerminate or engine.hasParameters) then // todo - should this be the engine that decides this?
   begin
     tbBtnConfigure.visible := false;
   end;
@@ -344,7 +349,7 @@ begin
       case tn.outcome of
         toPass : inc(pc);
         toFail : inc(ec);
-        toError : inc(fc);
+        toError, toHalt : inc(fc);
       else //  toNotRun
         inc(nr);
       end;
@@ -492,7 +497,7 @@ begin
       if i < length(so) then
       begin
         ti.outcome := TTestOutcome(StrToInt(so[i+1]));
-        if not (ti.outcome in [toSomePass, toPass, toFail, toError]) then
+        if not (ti.outcome in [toSomePass, toPass, toFail, toError, toHalt]) then
           ti.outcome := toNotRun;
       end
       else
@@ -636,7 +641,7 @@ var
 begin
   for ti in FTestInfo do
   begin
-    ti.execute := (ti.outcome in [toFail, toError]) and (ti.CheckState <> tcsUnchecked);
+    ti.execute := (ti.outcome in [toFail, toError, toHalt]) and (ti.CheckState <> tcsUnchecked);
     if ti.execute then
       setDoExecuteParent(ti.parent);
   end;
@@ -674,7 +679,7 @@ begin
   FWantStop := true;
   if engine.canTerminate then
   begin
-    FKillTime := GetTickCount64 + KILL_TIME_DELAY;
+    FKillTime := GetTickCount64 + StrToInt(store.read('killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
     actionTestStop.ImageIndex := 14;
   end;
 end;
@@ -794,6 +799,13 @@ begin
             Inc(FErrorCount);
             lblStatus.caption := '';
           end;
+        tekHalt:
+          begin
+            ev.node.ExceptionMessage := 'Process terminated!';
+            ev.node.outcome := toHalt;
+            Inc(FErrorCount);
+            lblStatus.caption := '';
+          end;
         tekEndRun:
           begin
             ti := ev.node;
@@ -832,7 +844,7 @@ begin
       toNotRun : if outcome = toUnknown then outcome := toNotRun else if outcome = toPass then outcome := toSomePass;
       toPass : if outcome = toUnknown then outcome := toPass else if outcome = toUnknown then outcome := toSomePass;
       toFail: if outcome <> toError then outcome := toFail;
-      toError: outcome := toError;
+      toError, toHalt: outcome := toError;
     else
     end;
   end;
@@ -912,7 +924,17 @@ procedure TTesterForm.actionTestConfigureExecute(Sender: TObject);
 begin
   IDETesterSettings := TIDETesterSettings.create(self);
   try
-    IDETesterSettings.showModal;
+    IDETesterSettings.pnlKillTime.visible := engine.canTerminate;
+    IDETesterSettings.pnlParameters.visible := engine.hasParameters;
+    IDETesterSettings.editWaitTime.Text := store.read('killtime', inttostr(DEFAULT_KILL_TIME_DELAY));
+    IDETesterSettings.edtParameters.text := store.read('parameters', '');
+    if IDETesterSettings.showModal = mrOk then
+    begin
+      store.save('parameters', IDETesterSettings.edtParameters.text);
+      engine.parameters := IDETesterSettings.edtParameters.text;
+      store.save('killtime', IDETesterSettings.editWaitTime.Text);
+    end;
+
   finally
     IDETesterSettings.free;
   end;
@@ -946,10 +968,11 @@ end;
 
 procedure TTesterForm.killRunningTests;
 begin
-  KillThread(FThread.Handle);
-  if (not FRunningTest.hasChildren) then
-    EndTestSuite(FRunningTest);
-  queueEvent(FRunningTest, tekEndRun, '', '');
+  if FSession <> nil then
+    engine.terminateTests(FSession);
+  //if (not FRunningTest.hasChildren) then
+  //  EndTestSuite(FRunningTest);
+  //queueEvent(FRunningTest, tekEndRun, '', '');
 end;
 
 end.

@@ -18,6 +18,8 @@ type
     Label1: TLabel;
     Label2: TLabel;
     Panel1: TPanel;
+    pnlKillTime: TPanel;
+    pnlParameters: TPanel;
   private
 
   public

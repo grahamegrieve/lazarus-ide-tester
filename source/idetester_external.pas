@@ -15,12 +15,14 @@ type
   TTestNodeId = class (TObject)
   private
     FId: String;
+    FRunning: boolean;
     FTestClassName: String;
     FTestName: String;
   public
     property id : String read FId write FId;
     property testClassName : String read FTestClassName write FTestClassName;
     property testName : String read FTestName write FTestName;
+    property running : boolean read FRunning write FRunning;
   end;
 
   { TTestEngineExternalSession }
@@ -29,6 +31,8 @@ type
   private
     FProcess: TProcess;
     FSkipList : TTestNodeList;
+
+    function saveSkipList : String;
   public
     constructor Create;
     destructor Destroy; override;
@@ -97,6 +101,8 @@ type
 
     function findTestInNode(id : String; node : TTestNode) : TTestNode;
     function findNode(id : String) : TTestNode;
+    procedure markTestHalted(node : TTestNode);
+    procedure addBaseParams(st : TStringList);
   protected
     function runProgram(params : TStringList; debug : boolean) : TProcess; virtual; abstract;
   public
@@ -105,6 +111,7 @@ type
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
     function canDebug : boolean; override;
+    function hasParameters : boolean; override;
 
     function prepareToRunTests : TTestSession; override;
     procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); override;
@@ -192,6 +199,19 @@ begin
 end;
 
 { TTestEngineExternalSession }
+
+function TTestEngineExternalSession.saveSkipList: String;
+var
+  f : System.Text;
+  n : TTestNode;
+begin
+  result := IncludeTrailingPathDelimiter(GetTempDir)+'skip-list.txt';
+  assignFile(f, result);
+  rewrite(f);
+  for n in FSkipList do
+    writeln(f, (n.data as TTestNodeId).id);
+  CloseFile(f);
+end;
 
 constructor TTestEngineExternalSession.Create;
 begin
@@ -291,13 +311,16 @@ begin
   StringSplit(r.trim, ' ', l, r);
   if (l = 'start') then
   begin
+    (test.Data as TTestNodeId).running := true;
     if test.hasChildren then
       listener.StartTestSuite(test)
     else
       listener.StartTest(test);
+
   end
   else if (l = 'end') then
   begin
+    (test.Data as TTestNodeId).running := false;
     if test.hasChildren then
       listener.EndTestSuite(test)
     else
@@ -349,6 +372,7 @@ begin
   clearTests;
   params := TStringList.create;
   try
+    addBaseParams(params);
     params.add('-'+FPC_MAGIC_COMMAND);
     process := runProgram(params, false);
     try
@@ -425,6 +449,38 @@ begin
     raise Exception.create('Test "'+id+'" not found!'); // this really shouldn't happen
 end;
 
+procedure TTestEngineExternal.markTestHalted(node: TTestNode);
+var
+  child : TTestNode;
+begin
+  if not node.hasChildren then
+  begin
+    if (node.Data as TTestNodeId).running then
+      listener.TestHalt(node);
+  end
+  else
+  begin
+    for child in node.children do
+      markTestHalted(child);
+    if (node.Data as TTestNodeId).running then
+      listener.EndTestSuite(node);
+  end;
+end;
+
+procedure TTestEngineExternal.addBaseParams(st: TStringList);
+var
+  l , r : String;
+begin
+  r := parameters;
+  while (r <> '') do
+  begin
+    StringSplit(r, ' ', l, r);
+    l := l.trim;
+    if (l <> '') then
+      st.add(l);
+  end;
+end;
+
 function TTestEngineExternal.threadMode: TTestEngineThreadMode;
 begin
   result := ttmOtherThread;
@@ -446,6 +502,11 @@ begin
   result := false;
 end;
 
+function TTestEngineExternal.hasParameters: boolean;
+begin
+  Result := true;
+end;
+
 function TTestEngineExternal.prepareToRunTests: TTestSession;
 begin
   result := TTestEngineExternalSession.create; // this will hold the external process
@@ -462,10 +523,16 @@ begin
     FRunningTest := node;
     params := TStringList.create;
     try
+      addBaseParams(params);
       params.add('-'+FPC_MAGIC_COMMAND);
       params.add('-run');
       params.add((node.Data as TTestNodeId).id);
       sess := session as TTestEngineExternalSession;
+      if sess.FSkipList.count > 0 then
+      begin
+        params.add('-skip');
+        params.add(sess.saveSkipList);
+      end;
       sess.Process := runProgram(params, debug);
       try
         p := TTesterOutputProcessor.create(Sess.Process, processLine);
@@ -483,6 +550,8 @@ begin
     finally
       params.free;
     end;
+    // any tests still running, mark them as halted.
+    markTestHalted(node);
   finally
     listener.EndRun(node);
   end;

@@ -249,11 +249,12 @@ begin
 end;
 
 
-function runTests(allTests : TDictionary<TTest, TTestInfo>; id : String) : integer;
+function runTests(allTests : TDictionary<TTest, TTestInfo>; id : String; skiplist : TStringList) : integer;
 var
-  test : TTest;
+  test, st : TTest;
   listener : ITestListener;
   tr : TTestResult;
+  s : string;
 begin
   test := findTest(allTests, id);
   if test = nil then
@@ -267,6 +268,13 @@ begin
     tr := TTestResult.create;
     try
       tr.AddListener(listener);
+      if skipList.count > 0 then
+        for s in skiplist do
+        begin
+          st := findTest(allTests, s);
+          if st is TTestCase then
+            tr.AddToSkipList(st as TTestCase);
+        end;
       test.Run(tr);
     finally
       tr.free;
@@ -277,6 +285,8 @@ end;
 procedure RunIDETests;
 var
   allTests : TDictionary<TTest, TTestInfo>;
+  skiplist : TStringList;
+  fn : String;
 begin
   if not IsRunningIDETests then
   begin
@@ -289,7 +299,16 @@ begin
     try
       ListTests(allTests);
       if hasCommandLineParam('run') then
-        exitCode := RunTests(allTests, getCommandLineParam('run'))
+      begin
+        skipList := TStringList.create;
+        try
+          if getCommandLineParam('skip', fn) then
+            skipList.LoadFromFile(fn);
+          exitCode := RunTests(allTests, getCommandLineParam('run'), skiplist)
+        finally
+          skiplist.free;
+        end;
+      end
       else
         exitCode := 1;
     finally

@@ -11,7 +11,7 @@ uses
 
 type
   TTestCheckState = (tcsUnchecked, tcsChecked, tcsMixed);
-  TTestOutcome = (toUnknown, toNotRun, toRunning, toChildRunning, toPass, toFail, toError, toSomePass);
+  TTestOutcome = (toUnknown, toNotRun, toRunning, toChildRunning, toPass, toFail, toError, toSomePass, toHalt);
 
   TTestNode = class;
   TTestNodeList = class;
@@ -105,6 +105,7 @@ type
     procedure EndTest(test: TTestNode); virtual; abstract;
     procedure TestFailure(test: TTestNode; fail: TTestError); virtual; abstract;
     procedure TestError(test: TTestNode; error: TTestError); virtual; abstract;
+    procedure TestHalt(test: TTestNode); virtual; abstract; // testing process died completely
     procedure StartTestSuite(test: TTestNode); virtual; abstract;
     procedure EndTestSuite(test: TTestNode); virtual; abstract;
     procedure EndRun(test: TTestNode); virtual; abstract;
@@ -124,6 +125,7 @@ type
   TTestEngine = class abstract (TObject)
   private
     FListener: TTestListener;
+    FParameters: String;
   public
     property listener : TTestListener read FListener write FListener;
 
@@ -133,6 +135,8 @@ type
     function canTerminate : boolean; virtual; abstract; // true if it's ok to call terminateTests
     function canDebug : boolean; virtual; abstract;
     function doesReload : boolean; virtual; abstract;
+    function hasParameters : boolean; virtual;
+    property parameters : String read FParameters write FParameters;
 
     function prepareToRunTests : TTestSession; virtual; abstract; // get ready to run tests - do whatever is requred (e.g. compile in the ide)
 
@@ -142,6 +146,13 @@ type
   end;
 
 implementation
+
+{ TTestEngine }
+
+function TTestEngine.hasParameters: boolean;
+begin
+  result := false;
+end;
 
 { TTestNode }
 

@@ -18,7 +18,9 @@ implementation
 
 procedure TTestCase1.TestHookUp;
 begin
-  Fail('Write your own test');
+//  Fail('Write your own test');
+//  System.Halt(1);
+  sleep(60000);
 end;
 
 
