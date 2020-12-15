@@ -297,12 +297,15 @@ begin
     mnuDebug.visible := false;
   end;
   actionTestReloadExecute(self);
+  pbBarPaint(pbBar);
 end;
 
 procedure TTesterForm.setActionStatus(running: boolean);
 begin
   actionTestCopy.Enabled := not running;
   actionTestSelectAll.Enabled := not running;
+  actionTestReload.Enabled := not running;
+  actionTestConfigure.Enabled := not running;
   actionTestUnselectAll.Enabled := not running;
   actionTestReset.Enabled := not running;
   actionTestStop.Enabled := running;
@@ -713,6 +716,10 @@ begin
   with (Sender as TPaintBox) do
   begin
     Canvas.Lock;
+    if FRunningTest <> nil then
+      Canvas.Pen.Color := clBlue
+    else
+      Canvas.Pen.Color := clBlack;
     Canvas.Brush.Color := clSilver;
     Canvas.Rectangle(0, 0, Width, Height);
     Canvas.Font.Color := clWhite;
@@ -730,7 +737,7 @@ begin
       msg := Format(rsFailures, [msg, IntToStr(FFailCount)]);
       OldStyle := Canvas.Brush.Style;
       Canvas.Brush.Style := bsClear;
-      Canvas.Textout(10, 4,  msg);
+      Canvas.Textout(6, 2,  msg);
       Canvas.Brush.Style := OldStyle;
     end;
     Canvas.UnLock;
@@ -883,6 +890,7 @@ begin
   setActionStatus(false);
   saveState;
   UpdateTotals;
+  pbBarPaint(pbBar);
 end;
 
 procedure TTesterForm.actionTestCopyExecute(Sender: TObject);
