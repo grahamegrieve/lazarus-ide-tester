@@ -28,9 +28,14 @@ implementation
 { TTestIniSettingsProvider }
 
 constructor TTestIniSettingsProvider.Create(path: String);
+var
+  folder : String;
 begin
   inherited Create;
   FIni := TIniFile.create(path);
+  folder := ExtractFileDir(path);
+  if not DirectoryExists(folder) then
+    CreateDir(folder);
 end;
 
 destructor TTestIniSettingsProvider.Destroy;
@@ -50,4 +55,5 @@ begin
 end;
 
 end.
+
 

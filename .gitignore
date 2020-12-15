@@ -5,3 +5,13 @@
 /project/*.exe
 /project/*.lps
 /package/backup
+
+package/lib/x86_64-darwin/
+
+project/idetester_standalone.app/
+
+project/lib/x86_64-darwin/
+
+project/idetester_standalone
+
+project/idetester_example
