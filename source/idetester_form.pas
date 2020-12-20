@@ -282,7 +282,7 @@ end;
 procedure TTesterForm.FormShow(Sender: TObject);
 begin
   if store = nil then
-    store := TTestIniSettingsProvider.create(IncludeTrailingPathDelimiter(getAppConfigDir(true))+'fhir-tests-settings.ini');
+    store := TTestIniSettingsProvider.create(IncludeTrailingPathDelimiter(getAppConfigDir(false))+'fhir-tests-settings.ini');
   if engine = nil then
     engine := TTestEngineDirect.create;
 
