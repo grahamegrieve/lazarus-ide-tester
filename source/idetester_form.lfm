@@ -139,6 +139,7 @@ object TesterForm: TTesterForm
     TreeOptions.MiscOptions = [toAcceptOLEDrop, toCheckSupport, toFullRepaintOnResize, toInitOnSave, toToggleOnDblClick, toWheelPanning]
     TreeOptions.SelectionOptions = [toFullRowSelect, toRightClickSelect]
     OnAddToSelection = tvTestsAddToSelection
+    OnChecked = tvTestsChecked
     OnGetText = tvTestsGetText
     OnGetImageIndex = tvTestsGetImageIndex
     OnRemoveFromSelection = tvTestsRemoveFromSelection

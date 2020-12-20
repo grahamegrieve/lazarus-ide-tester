@@ -6,6 +6,8 @@ interface
 
 uses
   Classes, SysUtils, Process,
+  UITypes, Forms,
+  ProjectIntf, LazIDEIntf,
   idetester_base, idetester_external;
 
 type
@@ -14,6 +16,9 @@ type
   TTestEngineIDE = class (TTestEngineExternal)
   protected
     function runProgram(params : TStringList; debug : boolean) : TProcess; override;
+    function autoLoad : boolean; override;
+  public
+    function OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
   end;
 
   { TTestSettingsProjectProvider }
@@ -31,12 +36,15 @@ implementation
 
 function TTestSettingsProjectProvider.read(name, defValue: String): String;
 begin
-  // todo: read setting from current lps file
+  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and LazarusIDE.ActiveProject.CustomSessionData.Contains('idetester.'+name) then
+    result := LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name]
+  else
+    result := defValue;
 end;
 
 procedure TTestSettingsProjectProvider.save(name, value: String);
 begin
-  // todo: write setting to current lps file
+  LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value;
 end;
 
 { TTestEngineIDE }
@@ -44,6 +52,18 @@ end;
 function TTestEngineIDE.runProgram(params: TStringList; debug : boolean): TProcess;
 begin
   // todo - compile and run, inside IDE
+  raise Exception.create('Not done yet');
+end;
+
+function TTestEngineIDE.autoLoad: boolean;
+begin
+  Result := false;
+end;
+
+function TTestEngineIDE.OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
+begin
+  OnClearTests(self);
+  result := mrOk;
 end;
 
 end.

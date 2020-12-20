@@ -5,7 +5,7 @@ unit idetester_base;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections,
+  SysUtils, Classes, Generics.Collections,
   laz.VirtualTrees,
   idetester_strings;
 
@@ -125,11 +125,13 @@ type
   TTestEngine = class abstract (TObject)
   private
     FListener: TTestListener;
+    FOnClearTests: TNotifyEvent;
     FParameters: String;
   public
     property listener : TTestListener read FListener write FListener;
+    property OnClearTests : TNotifyEvent read FOnClearTests write FOnClearTests;
 
-    procedure loadAllTests(factory : TNodeFactory); virtual; abstract; // get a list of tests
+    procedure loadAllTests(factory : TNodeFactory; manual : boolean); virtual; abstract; // get a list of tests
     function threadMode : TTestEngineThreadMode; virtual; abstract;
 
     function canTerminate : boolean; virtual; abstract; // true if it's ok to call terminateTests

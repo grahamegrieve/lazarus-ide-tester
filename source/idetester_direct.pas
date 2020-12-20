@@ -48,7 +48,7 @@ type
     Function registerTestNode(factory : TNodeFactory; parent : TTestNode; test : TTest) : TTestNode;
     procedure BuildTree(factory : TNodeFactory; rootTest: TTestNode; aSuite: TTestSuite);
   public
-    procedure loadAllTests(factory : TNodeFactory); override;
+    procedure loadAllTests(factory : TNodeFactory; manual : boolean); override;
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
@@ -177,7 +177,7 @@ end;
 
 { TTestEngineDirect }
 
-procedure TTestEngineDirect.loadAllTests(factory : TNodeFactory);
+procedure TTestEngineDirect.loadAllTests(factory : TNodeFactory; manual : boolean);
 var
   test : TTestSuite;
   node : TTestNode;

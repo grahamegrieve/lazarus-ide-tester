@@ -5,3 +5,5 @@
 /project/*.exe
 /project/*.lps
 /package/backup
+/ide/backup
+/ide/lib/x86_64-win64

@@ -8,6 +8,9 @@ uses
   Classes, SysUtils;
 
 resourcestring
+  rsLazarusIDETester_Name = 'TestCaseView';
+  rsLazarusIDETester_Desc = 'FPCUnit &Test Cases';
+
   rsAllTests = 'All Tests';
   //rsRun = 'Run ';
   rsRuns = 'Tests: %s/%s';

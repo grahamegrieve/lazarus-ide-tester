@@ -105,8 +105,9 @@ type
     procedure addBaseParams(st : TStringList);
   protected
     function runProgram(params : TStringList; debug : boolean) : TProcess; virtual; abstract;
+    function autoLoad : boolean; virtual;
   public
-    procedure loadAllTests(factory : TNodeFactory); override;
+    procedure loadAllTests(factory : TNodeFactory; manual : boolean); override;
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
@@ -362,33 +363,36 @@ begin
 
 end;
 
-procedure TTestEngineExternal.loadAllTests(factory: TNodeFactory);
+procedure TTestEngineExternal.loadAllTests(factory: TNodeFactory; manual : boolean);
 var
   params : TStringList;
   process : TProcess;
   p : TTesterOutputProcessor;
   node : TTestNode;
 begin
-  clearTests;
-  params := TStringList.create;
-  try
-    addBaseParams(params);
-    params.add('-'+FPC_MAGIC_COMMAND);
-    process := runProgram(params, false);
+  if manual or autoLoad then
+  begin
+    clearTests;
+    params := TStringList.create;
     try
-      p := TTesterOutputProcessor.create(process, processLine);
+      addBaseParams(params);
+      params.add('-'+FPC_MAGIC_COMMAND);
+      process := runProgram(params, false);
       try
-        p.process;
-        node := registerTestNode(factory, nil, FTests);
-        BuildTree(factory, node, FTests);
+        p := TTesterOutputProcessor.create(process, processLine);
+        try
+          p.process;
+          node := registerTestNode(factory, nil, FTests);
+          BuildTree(factory, node, FTests);
+        finally
+          p.free;
+        end;
       finally
-        p.free;
+        process.free;
       end;
     finally
-      process.free;
+      params.free;
     end;
-  finally
-    params.free;
   end;
 end;
 
@@ -479,6 +483,11 @@ begin
     if (l <> '') then
       st.add(l);
   end;
+end;
+
+function TTestEngineExternal.autoLoad: boolean;
+begin
+  result := true;
 end;
 
 function TTestEngineExternal.threadMode: TTestEngineThreadMode;

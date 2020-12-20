@@ -128,6 +128,7 @@ type
     procedure pbBarPaint(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
+    procedure tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
     procedure tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
     procedure tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -146,12 +147,14 @@ type
     FShuttingDown : boolean;
     FThread : TTestThread;
     FKillTime : cardinal;
+    FLoading : boolean;
 
     // -- utils ----
     function tn(p: PVirtualNode): TTestNode;
     procedure UpdateTotals;
 
     // -- init ----
+    procedure doClearTests(sender : TObject);
     procedure LoadTree;
     function nodeFactory(parent : TTestNode) : TTestNode;
     procedure refreshNode(test : TTestNode);
@@ -258,6 +261,8 @@ begin
   FTestInfo := TTestNodeList.create(true);
   InitCriticalSection(FLock);
   FIncoming := TTestEventQueue.create(false);
+  tvTests.NodeDataSize := sizeof(pointer);
+  FLoading := true;
 
   pbBarPaint(pbBar);
   setActionStatus(false);
@@ -282,6 +287,7 @@ begin
     engine := TTestEngineDirect.create;
 
   engine.listener := TTesterFormListener.create(self);
+  engine.OnClearTests := doClearTests;
   if not engine.doesReload then
   begin
     tbBtnReload.visible := false;
@@ -298,6 +304,7 @@ begin
   end;
   actionTestReloadExecute(self);
   pbBarPaint(pbBar);
+  FLoading := false;
 end;
 
 procedure TTesterForm.setActionStatus(running: boolean);
@@ -385,6 +392,14 @@ begin
   actionTestReset.enabled := res;
 end;
 
+procedure TTesterForm.doClearTests;
+begin
+  tvTests.Clear;
+  FTestInfo.Clear;
+  tvTests.Refresh;
+  UpdateTotals;
+end;
+
 procedure TTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
 begin
   ImageIndex := ord(tn(node).outcome);
@@ -424,8 +439,7 @@ begin
   tvTests.Clear;
   FTestInfo.Clear;
   tvTests.Refresh;
-  tvTests.NodeDataSize := sizeof(pointer);
-  engine.loadAllTests(nodeFactory);
+  engine.loadAllTests(nodeFactory, not FLoading);
   if FTestInfo.Count > 0 then
   begin
 
@@ -467,6 +481,11 @@ begin
     actTestRunSelected.caption := 'Run Selected Test';
     actTestDebugSelected.caption := 'Debug Selected Test';
   end;
+  UpdateTotals;
+end;
+
+procedure TTesterForm.tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
+begin
   UpdateTotals;
 end;
 
