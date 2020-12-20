@@ -6,9 +6,9 @@ interface
 
 uses
   Classes, SysUtils, Process,
-  UITypes, Forms,
-  ProjectIntf, LazIDEIntf,
-  idetester_base, idetester_external;
+  UITypes, Forms, Dialogs,
+  ProjectIntf, LazIDEIntf, MacroIntf, CompOptsIntf,
+  idetester_strings, idetester_base, idetester_external;
 
 type
   { TTestEngineIDE }
@@ -46,13 +46,42 @@ procedure TTestSettingsProjectProvider.save(name, value: String);
 begin
   LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value;
 end;
+                 
+function MyGetProjectTargetFile: string;
+begin
+  Result:='$(TargetFile)';
+  if not IDEMacros.SubstituteMacros(Result) then
+    raise Exception.Create('unable to retrieve target file of project');
+end;
 
 { TTestEngineIDE }
 
 function TTestEngineIDE.runProgram(params: TStringList; debug : boolean): TProcess;
+var
+  exeName : String;
 begin
-  // todo - compile and run, inside IDE
-  raise Exception.create('Not done yet');
+  if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
+    ShowMessage(rsLazarusIDETester_Err_No_Project)
+  else if (LazarusIDE.ActiveProject.ExecutableType <> petProgram) then
+    ShowMessage(rsLazarusIDETester_Err_Project_Type)
+  else
+  begin
+    if LazarusIDE.DoBuildProject(crCompile, []) = mrOk then
+    begin
+      exeName := '$(TargetFile)';
+      if not IDEMacros.SubstituteMacros(exeName) then
+        ShowMessage(rsLazarusIDETester_Err_Project_Target)
+      else
+      begin
+        result := TProcess.create(nil);
+        result.Executable := exeName;
+        result.Parameters := params;
+        result.ShowWindow := swoHIDE;
+        result.Options := [poUsePipes];
+        result.Execute;
+      end;
+    end;
+  end;
 end;
 
 function TTestEngineIDE.autoLoad: boolean;

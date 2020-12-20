@@ -10,6 +10,9 @@ uses
 resourcestring
   rsLazarusIDETester_Name = 'TestCaseView';
   rsLazarusIDETester_Desc = 'FPCUnit &Test Cases';
+  rsLazarusIDETester_Err_No_Project = 'No Project loaded to test';
+  rsLazarusIDETester_Err_Project_Type = 'This kind of project cannot be tested';
+  rsLazarusIDETester_Err_Project_Target = 'Unable to retrieve target file of project';
 
   rsAllTests = 'All Tests';
   //rsRun = 'Run ';

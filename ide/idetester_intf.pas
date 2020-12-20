@@ -9,14 +9,12 @@ uses
   // LCL
   LCLType, Forms,
   // IdeIntf
-  MenuIntf, IDECommands, ToolBarIntf, IDEWindowIntf, LazLoggerBase, LazIDEIntf;
+  MenuIntf, IDECommands, ToolBarIntf, IDEWindowIntf, LazLoggerBase, LazIDEIntf,
+  idetester_strings, idetester_form, idetester_ide;
 
 procedure Register;
 
 implementation
-
-uses
-  idetester_strings, idetester_form, idetester_ide;
 
 var
   IDETesterCreator : TIDEWindowCreator;
