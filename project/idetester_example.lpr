@@ -3,29 +3,25 @@ program idetester_example;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, consoletestrunner, idetester_example_testcase, idetester_runtime,
-  idetester_tests;
-
-type
-
-  { TMyTestRunner }
-
-  TMyTestRunner = class(TTestRunner)
-  protected
-  // override the protected methods of TTestRunner to customize its behavior
-  end;
-
-var
-  Application: TMyTestRunner;
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
+  {$IFDEF HASAMIGA}
+  athreads,
+  {$ENDIF}
+  Interfaces, // this includes the LCL widgetset
+  Classes, Forms,
+  idetester_example_testcase, idetester_runtime, idetester_tests, idetester_form;
 
 begin
   if IsRunningIDETests then
     RunIDETests
   else
   begin
-    Application := TMyTestRunner.Create(nil);
+    Application.Scaled:=True;
     Application.Initialize;
-    Application.Title := 'FPCUnit Console test runner';
+    Application.CreateForm(TTesterForm, TesterForm);
+    Application.Title := 'FPCUnit test runner';
     Application.Run;
     Application.Free;
   end;

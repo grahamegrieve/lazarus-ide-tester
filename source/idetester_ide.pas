@@ -46,12 +46,18 @@ procedure TTestSettingsProjectProvider.save(name, value: String);
 begin
   LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value;
 end;
-                 
-function MyGetProjectTargetFile: string;
+
+function nameForType(p : TProjectExecutableType) : String;
 begin
-  Result:='$(TargetFile)';
-  if not IDEMacros.SubstituteMacros(Result) then
-    raise Exception.Create('unable to retrieve target file of project');
+  case p of
+    petNone : result := 'None';
+    petProgram : result := 'Program';
+    petLibrary : result := 'Library';
+    petPackage : result := 'Package';
+    petUnit : result := 'Unit';
+  else
+    result := '??';
+  end;
 end;
 
 { TTestEngineIDE }
@@ -60,10 +66,11 @@ function TTestEngineIDE.runProgram(params: TStringList; debug : boolean): TProce
 var
   exeName : String;
 begin
+  result := nil;
   if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
     ShowMessage(rsLazarusIDETester_Err_No_Project)
   else if (LazarusIDE.ActiveProject.ExecutableType <> petProgram) then
-    ShowMessage(rsLazarusIDETester_Err_Project_Type)
+    ShowMessage(rsLazarusIDETester_Err_Project_Type+' ('+nameForType(LazarusIDE.ActiveProject.ExecutableType)+')')
   else
   begin
     if LazarusIDE.DoBuildProject(crCompile, []) = mrOk then

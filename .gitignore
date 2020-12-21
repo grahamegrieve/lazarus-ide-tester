@@ -22,3 +22,4 @@ project/lib/x86_64-linux/
 
 /ide/backup
 /ide/lib/x86_64-win64
+/project/lib_example/x86_64-win64

@@ -379,13 +379,16 @@ begin
       params.add('-'+FPC_MAGIC_COMMAND);
       process := runProgram(params, false);
       try
-        p := TTesterOutputProcessor.create(process, processLine);
-        try
-          p.process;
-          node := registerTestNode(factory, nil, FTests);
-          BuildTree(factory, node, FTests);
-        finally
-          p.free;
+        if process <> nil then
+        begin
+          p := TTesterOutputProcessor.create(process, processLine);
+          try
+            p.process;
+            node := registerTestNode(factory, nil, FTests);
+            BuildTree(factory, node, FTests);
+          finally
+            p.free;
+          end;
         end;
       finally
         process.free;
