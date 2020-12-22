@@ -1,4 +1,4 @@
-object TesterForm: TTesterForm
+object IdeTesterForm: TIdeTesterForm
   Left = 1361
   Height = 694
   Top = 78
@@ -36,12 +36,12 @@ object TesterForm: TTesterForm
     object ToolButton3: TToolButton
       Left = 78
       Top = 2
-      Action = actionTestRunFailed
+      Action = actTestRunFailed
     end
     object ToolButton4: TToolButton
       Left = 101
       Top = 2
-      Action = actionTestStop
+      Action = actTestStop
     end
     object ToolButton5: TToolButton
       Left = 224
@@ -53,12 +53,12 @@ object TesterForm: TTesterForm
     object ToolButton6: TToolButton
       Left = 232
       Top = 2
-      Action = actionTestCopy
+      Action = actTestCopy
     end
     object ToolButton7: TToolButton
       Left = 201
       Top = 2
-      Action = actionTestReset
+      Action = actTestReset
     end
     object ToolButton8: TToolButton
       Left = 124
@@ -70,17 +70,17 @@ object TesterForm: TTesterForm
     object ToolButton9: TToolButton
       Left = 155
       Top = 2
-      Action = actionTestSelectAll
+      Action = actTestSelectAll
     end
     object ToolButton10: TToolButton
       Left = 178
       Top = 2
-      Action = actionTestUnselectAll
+      Action = actTestUnselectAll
     end
     object tbBtnReload: TToolButton
       Left = 1
       Top = 2
-      Action = actionTestReload
+      Action = actTestReload
     end
     object tbBtnReloadSep: TToolButton
       Left = 24
@@ -92,7 +92,7 @@ object TesterForm: TTesterForm
     object tbBtnConfigure: TToolButton
       Left = 255
       Top = 2
-      Action = actionTestConfigure
+      Action = actTestConfigure
     end
     object tbBtnDebug: TToolButton
       Left = 55
@@ -352,61 +352,61 @@ object TesterForm: TTesterForm
       ImageIndex = 0
       OnExecute = actTestRunCheckedExecute
     end
-    object actionTestRunFailed: TAction
+    object actTestRunFailed: TAction
       Category = 'Testing'
       Caption = 'Run Failed Tests'
       Hint = 'Re run all failed tests'
       ImageIndex = 2
-      OnExecute = actionTestRunFailedExecute
+      OnExecute = actTestRunFailedExecute
     end
-    object actionTestStop: TAction
+    object actTestStop: TAction
       Category = 'Testing'
       Caption = 'Stop'
       Hint = 'Stop running tests'
       ImageIndex = 3
-      OnExecute = actionTestStopExecute
+      OnExecute = actTestStopExecute
     end
-    object actionTestReset: TAction
+    object actTestReset: TAction
       Category = 'Testing'
       Caption = 'Clear Test Results'
       Hint = 'Clear All Test Results'
       ImageIndex = 5
-      OnExecute = actionTestResetExecute
+      OnExecute = actTestResetExecute
     end
-    object actionTestCopy: TAction
+    object actTestCopy: TAction
       Category = 'Testing'
       Caption = 'Copy Results to Clipboard'
       Hint = 'Copy Results to Clipboard'
       ImageIndex = 4
-      OnExecute = actionTestCopyExecute
+      OnExecute = actTestCopyExecute
     end
-    object actionTestSelectAll: TAction
+    object actTestSelectAll: TAction
       Category = 'Testing'
       Caption = 'Check these tests'
       Hint = 'Check selected tests'
       ImageIndex = 12
-      OnExecute = actionTestSelectAllExecute
+      OnExecute = actTestSelectAllExecute
     end
-    object actionTestUnselectAll: TAction
+    object actTestUnselectAll: TAction
       Category = 'Testing'
       Caption = 'Uncheck these tests'
       Hint = 'Uncheck selected Tests'
       ImageIndex = 13
-      OnExecute = actionTestUnselectAllExecute
+      OnExecute = actTestUnselectAllExecute
     end
-    object actionTestReload: TAction
+    object actTestReload: TAction
       Category = 'Testing'
       Caption = 'Reload Test List'
       Hint = 'Load the list of tests again'
       ImageIndex = 15
-      OnExecute = actionTestReloadExecute
+      OnExecute = actTestReloadExecute
     end
-    object actionTestConfigure: TAction
+    object actTestConfigure: TAction
       Category = 'Testing'
       Caption = 'Configuration Options'
       Hint = 'Set Configuration Options'
       ImageIndex = 16
-      OnExecute = actionTestConfigureExecute
+      OnExecute = actTestConfigureExecute
     end
     object actTestDebugSelected: TAction
       Category = 'Testing'
@@ -426,13 +426,13 @@ object TesterForm: TTesterForm
       Action = actTestDebugSelected
     end
     object MenuItem1: TMenuItem
-      Action = actionTestSelectAll
+      Action = actTestSelectAll
     end
     object MenuItem2: TMenuItem
-      Action = actionTestUnselectAll
+      Action = actTestUnselectAll
     end
     object MenuItem4: TMenuItem
-      Action = actionTestCopy
+      Action = actTestCopy
     end
   end
   object ilOutcomes: TImageList

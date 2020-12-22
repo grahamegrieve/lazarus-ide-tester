@@ -184,11 +184,13 @@ end;
 function hasCommandLineParam(name : String) : boolean;
 var
   i : integer;
+  s : String;
 begin
   result := false;
   for i := 1 to paramCount  do
   begin
-    if paramStr(i) = '-'+name then
+    s := paramStr(i);
+    if s = '-'+name then
       exit(true);
   end;
 end;
@@ -214,7 +216,7 @@ begin
     else
     begin
       cpath := path+'.'+inttostr(i);
-      writeln(indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName);
+      writeln('$#$#'+indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName);
       allTests.Add(suite.Test[i], TTestInfo.create(cpath));
       cindent := indent + ' ';
     end;
@@ -230,12 +232,12 @@ procedure listTests(allTests : TDictionary<TTest, TTestInfo>);
 var
   test : TTestSuite;
 begin
-  writeln('-- Test List ---');
+  writeln('$#$#-- Test List ---');
   test := GetTestRegistry;
-  writeln('0 = RootTest: AllTests');
+  writeln('$#$#0 = RootTest: AllTests');
   printTests(' ', '0', test, allTests);
   allTests.Add(test, TTestInfo.create('0'));
-  writeln('-- End Test List ---');
+  writeln('$#$#-- End Test List ---');
 end;
 
 function findTest(allTests : TDictionary<TTest, TTestInfo>; id : String) : TTest; overload;
@@ -259,7 +261,7 @@ begin
   test := findTest(allTests, id);
   if test = nil then
   begin
-    writeln('Unable to find test '+id);
+    writeln('$#$#Unable to find test '+id);
     result := 1;
   end
   else
@@ -344,7 +346,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln(ti.id+': start');
+  writeln('$#$#'+ti.id+': start');
   ti.start := GetTickCount64;
 end;
 
@@ -353,24 +355,30 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln(ti.id+': end '+inttostr(GetTickCount64 - ti.start));
+  writeln('$#$#'+ti.id+': end '+inttostr(GetTickCount64 - ti.start));
 end;
 
 procedure TTestEngineRunTimeListener.StartTestSuite(ATestSuite: TTestSuite);
 var
   ti : TTestInfo;
 begin
-  ti := FTests[ATestSuite];
-  writeln(ti.id+': start');
-  ti.start := GetTickCount64;
+  if FTests.containsKey(ATestSuite) then
+  begin
+    ti := FTests[ATestSuite];
+    writeln('$#$#'+ti.id+': start');
+    ti.start := GetTickCount64;
+  end;
 end;
 
 procedure TTestEngineRunTimeListener.EndTestSuite(ATestSuite: TTestSuite);
 var
   ti : TTestInfo;
 begin
-  ti := FTests[ATestSuite];
-  writeln(ti.id+': end '+inttostr(GetTickCount64 - ti.start));
+  if FTests.containsKey(ATestSuite) then
+  begin
+    ti := FTests[ATestSuite];
+    writeln('$#$#'+ti.id+': end '+inttostr(GetTickCount64 - ti.start));
+  end;
 end;
 
 procedure TTestEngineRunTimeListener.AddFailure(ATest: TTest; AFailure: TTestFailure);
@@ -378,7 +386,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln(ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage);
+  writeln('$#$#'+ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage);
 end;
 
 procedure TTestEngineRunTimeListener.AddError(ATest: TTest; AError: TTestFailure);
@@ -386,7 +394,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln(ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage);
+  writeln('$#$#'+ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage);
 end;
 
 end.

@@ -8,7 +8,8 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ComCtrls, ExtCtrls,
   StdCtrls, ActnList, Menus, LCLIntf, laz.VirtualTrees, ClipBrd,
   Generics.Collections,
-  idetester_options, idetester_base, idetester_strings, idetester_direct, idetester_ini;
+  idetester_base, idetester_strings, idetester_direct, idetester_ini,
+  idetester_options, idetester_debug_form;
 
 const
   DEFAULT_KILL_TIME_DELAY = 5000;
@@ -35,27 +36,27 @@ type
   end;
   TTestEventQueue = class (TObjectList<TTestEvent>);
 
-  TTesterForm = class;
+  TIdeTesterForm = class;
 
   { TTestThread }
 
   TTestThread = class (TThread)
   private
-    FTester : TTesterForm;
+    FTester : TIdeTesterForm;
     FDebug : boolean;
   protected
     procedure execute; override;
   public
-    constructor Create(tester : TTesterForm; debug : boolean);
+    constructor Create(tester : TIdeTesterForm; debug : boolean);
   end;
 
   { TTesterFormListener }
 
   TTesterFormListener  = class (TTestListener)
   private
-    FTester : TTesterForm;
+    FTester : TIdeTesterForm;
   public
-    constructor Create(tester : TTesterForm);
+    constructor Create(tester : TIdeTesterForm);
 
     procedure StartTest(test: TTestNode); override;
     procedure EndTest(test: TTestNode); override;
@@ -67,17 +68,17 @@ type
     procedure EndRun(test: TTestNode); override;
   end;
 
-  { TTesterForm }
-  TTesterForm = class(TForm)
+  { TIdeTesterForm }
+  TIdeTesterForm = class(TForm)
     actTestDebugSelected: TAction;
-    actionTestConfigure: TAction;
-    actionTestReload: TAction;
-    actionTestSelectAll: TAction;
-    actionTestUnselectAll: TAction;
-    actionTestReset: TAction;
-    actionTestCopy: TAction;
-    actionTestStop: TAction;
-    actionTestRunFailed: TAction;
+    actTestConfigure: TAction;
+    actTestReload: TAction;
+    actTestSelectAll: TAction;
+    actTestUnselectAll: TAction;
+    actTestReset: TAction;
+    actTestCopy: TAction;
+    actTestStop: TAction;
+    actTestRunFailed: TAction;
     actTestRunChecked: TAction;
     actTestRunSelected: TAction;
     ActionList1: TActionList;
@@ -110,15 +111,15 @@ type
     ToolButton7: TToolButton;
     ToolButton8: TToolButton;
     ToolButton9: TToolButton;
-    procedure actionTestConfigureExecute(Sender: TObject);
-    procedure actionTestCopyExecute(Sender: TObject);
-    procedure actionTestReloadExecute(Sender: TObject);
+    procedure actTestConfigureExecute(Sender: TObject);
+    procedure actTestCopyExecute(Sender: TObject);
+    procedure actTestReloadExecute(Sender: TObject);
     procedure actTestDebugSelectedExecute(Sender: TObject);
-    procedure actionTestResetExecute(Sender: TObject);
-    procedure actionTestRunFailedExecute(Sender: TObject);
-    procedure actionTestSelectAllExecute(Sender: TObject);
-    procedure actionTestStopExecute(Sender: TObject);
-    procedure actionTestUnselectAllExecute(Sender: TObject);
+    procedure actTestResetExecute(Sender: TObject);
+    procedure actTestRunFailedExecute(Sender: TObject);
+    procedure actTestSelectAllExecute(Sender: TObject);
+    procedure actTestStopExecute(Sender: TObject);
+    procedure actTestUnselectAllExecute(Sender: TObject);
     procedure actTestRunCheckedExecute(Sender: TObject);
     procedure actTestRunSelectedExecute(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -181,7 +182,7 @@ type
     property store : TTestSettingsProvider read FStore write FStore; // either an ini in AppConfig, or stored in the project settings somewhere?
   end;
 
-var TesterForm : TTesterForm;
+var IdeTesterForm : TIdeTesterForm;
 
 implementation
 
@@ -189,7 +190,7 @@ implementation
 
 { TTesterFormListener }
 
-constructor TTesterFormListener.Create(tester: TTesterForm);
+constructor TTesterFormListener.Create(tester: TIdeTesterForm);
 begin
   inherited Create;
   FTester := tester;
@@ -247,16 +248,16 @@ begin
   end;
 end;
 
-constructor TTestThread.Create(tester: TTesterForm; debug : boolean);
+constructor TTestThread.Create(tester: TIdeTesterForm; debug : boolean);
 begin
   FTester := tester;
   FDebug := debug;
   inherited Create(false);
 end;
 
-{ TTesterForm }
+{ TIdeTesterForm }
 
-procedure TTesterForm.FormCreate(Sender: TObject);
+procedure TIdeTesterForm.FormCreate(Sender: TObject);
 begin
   FTestInfo := TTestNodeList.create(true);
   InitCriticalSection(FLock);
@@ -266,9 +267,33 @@ begin
 
   pbBarPaint(pbBar);
   setActionStatus(false);
+
+  actTestDebugSelected.Caption := rs_IdeTester_Caption_DebugSelected_NODE;
+  actTestConfigure.Caption := rs_IdeTester_Caption_Configure;
+  actTestReload.Caption := rs_IdeTester_Caption_Reload;
+  actTestSelectAll.Caption := rs_IdeTester_Caption_SelectAll_NODE;
+  actTestUnselectAll.Caption := rs_IdeTester_Caption_UnselectAll_NODE;
+  actTestReset.Caption := rs_IdeTester_Caption_Reset_NODE;
+  actTestCopy.Caption := rs_IdeTester_Caption_Copy_NODE;
+  actTestStop.Caption := rs_IdeTester_Caption_Stop;
+  actTestRunFailed.Caption := rs_IdeTester_Caption_RunFailed;
+  actTestRunChecked.Caption := rs_IdeTester_Caption_RunChecked;
+  actTestRunSelected.Caption := rs_IdeTester_Caption_RunSelected_NODE;
+
+  actTestDebugSelected.Hint := rs_IdeTester_Hint_DebugSelected;
+  actTestConfigure.Hint := rs_IdeTester_Hint_Configure;
+  actTestReload.Hint := rs_IdeTester_Hint_Reload;
+  actTestSelectAll.Hint := rs_IdeTester_Hint_SelectAll;
+  actTestUnselectAll.Hint := rs_IdeTester_Hint_UnselectAll;
+  actTestReset.Hint := rs_IdeTester_Hint_Reset;
+  actTestCopy.Hint := rs_IdeTester_Hint_Copy;
+  actTestStop.Hint := rs_IdeTester_Hint_Stop;
+  actTestRunFailed.Hint := rs_IdeTester_Hint_RunFailed;
+  actTestRunChecked.Hint := rs_IdeTester_Hint_RunChecked;
+  actTestRunSelected.Hint := rs_IdeTester_Hint_RunSelected;
 end;
 
-procedure TTesterForm.FormDestroy(Sender: TObject);
+procedure TIdeTesterForm.FormDestroy(Sender: TObject);
 begin
   FShuttingDown := true;
   saveState;
@@ -279,7 +304,7 @@ begin
   FStore.Free;
 end;
 
-procedure TTesterForm.FormShow(Sender: TObject);
+procedure TIdeTesterForm.FormShow(Sender: TObject);
 begin
   if store = nil then
     store := TTestIniSettingsProvider.create(IncludeTrailingPathDelimiter(getAppConfigDir(false))+'fhir-tests-settings.ini');
@@ -288,12 +313,14 @@ begin
 
   engine.listener := TTesterFormListener.create(self);
   engine.OnClearTests := doClearTests;
+  if engine.hasParameters then
+    engine.parameters := store.read('parameters', '');
   if not engine.doesReload then
   begin
     tbBtnReload.visible := false;
     tbBtnReloadSep.visible := false;
   end;
-  if not (engine.canTerminate or engine.hasParameters) then // todo - should this be the engine that decides this?
+  if not (engine.canTerminate or engine.hasParameters) then
   begin
     tbBtnConfigure.visible := false;
   end;
@@ -302,21 +329,21 @@ begin
     tbBtnDebug.visible := false;
     mnuDebug.visible := false;
   end;
-  actionTestReloadExecute(self);
+  actTestReloadExecute(self);
   pbBarPaint(pbBar);
   FLoading := false;
 end;
 
-procedure TTesterForm.setActionStatus(running: boolean);
+procedure TIdeTesterForm.setActionStatus(running: boolean);
 begin
-  actionTestCopy.Enabled := not running;
-  actionTestSelectAll.Enabled := not running;
-  actionTestReload.Enabled := not running;
-  actionTestConfigure.Enabled := not running;
-  actionTestUnselectAll.Enabled := not running;
-  actionTestReset.Enabled := not running;
-  actionTestStop.Enabled := running;
-  actionTestRunFailed.Enabled := not running;
+  actTestCopy.Enabled := not running;
+  actTestSelectAll.Enabled := not running;
+  actTestReload.Enabled := not running;
+  actTestConfigure.Enabled := not running;
+  actTestUnselectAll.Enabled := not running;
+  actTestReset.Enabled := not running;
+  actTestStop.Enabled := running;
+  actTestRunFailed.Enabled := not running;
   actTestRunChecked.Enabled := not running;
   actTestRunSelected.Enabled := not running;
   actTestDebugSelected.Enabled := not running;
@@ -324,7 +351,7 @@ end;
 
 // -- Tree Management ----------------------------------------------------------
 
-function TTesterForm.tn(p : PVirtualNode) : TTestNode;
+function TIdeTesterForm.tn(p : PVirtualNode) : TTestNode;
 var
   pd : PTestNodeData;
 begin
@@ -332,7 +359,7 @@ begin
   result := pd.node;
 end;
 
-procedure TTesterForm.UpdateTotals;
+procedure TIdeTesterForm.UpdateTotals;
 var
   tc, pc, ec, fc, nr, cc : cardinal;
   tn : TTestNode;
@@ -367,50 +394,53 @@ begin
     end;
   end;
 
-  s := inttostr(tc)+ ' Tests: ';
-  s := s + inttostr(cc)+ ' checked';
-  s := s + ', '+inttostr(pc)+' passed';
+  s := inttostr(tc)+ ' '+rs_IdeTester_SBar_Tests+': ';
+  s := s + inttostr(cc)+ ' '+rs_IdeTester_SBar_Checked;
+  s := s + ', '+inttostr(pc)+' '+rs_IdeTester_SBar_Passed;
   if (fc + ec > 0) then
-    s := s + ', '+inttostr(fc+ec)+' failed';
+    s := s + ', '+inttostr(fc+ec)+' '+rs_IdeTester_SBar_Failed;
   if (ec > 0) then
-    s := s + ' ('+inttostr(ec)+' errors)';
+    s := s + ' ('+inttostr(ec)+' '+rs_IdeTester_SBar_Errors+')';
   if (nr > 0) then
-    s := s + ', '+inttostr(nr)+' not run';
+    s := s + ', '+inttostr(nr)+' '+rs_IdeTester_SBar_NotRun;
   if (ec + fc + nr = 0) then
-    s := s + ' - All OK✓';
+    s := s + ' - '+rs_IdeTester_SBar_All_OK;
   lblStatus.caption := s;
 
   actTestRunSelected.enabled := tc > 0;
   actTestDebugSelected.enabled := tc > 0;
-  actionTestSelectAll.enabled := tc > 0;
-  actionTestUnselectAll.enabled := tc > 0;
-  actionTestSelectAll.enabled := tc > 0;
-  actionTestUnselectAll.enabled := tc > 0;
-  actionTestCopy.enabled := tc > 0;
+  actTestSelectAll.enabled := tc > 0;
+  actTestUnselectAll.enabled := tc > 0;
+  actTestSelectAll.enabled := tc > 0;
+  actTestUnselectAll.enabled := tc > 0;
+  actTestCopy.enabled := tc > 0;
   actTestRunChecked.enabled := cc > 0;
-  actionTestRunFailed.enabled := fc + ec > 0;
-  actionTestReset.enabled := res;
+  actTestRunFailed.enabled := fc + ec > 0;
+  actTestReset.enabled := res;
 end;
 
-procedure TTesterForm.doClearTests;
+procedure TIdeTesterForm.doClearTests;
 begin
   tvTests.Clear;
   FTestInfo.Clear;
   tvTests.Refresh;
+  FTestsTotal := 0;
   UpdateTotals;
+  pbBarPaint(pbBar);
+  setActionStatus(false);
 end;
 
-procedure TTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
+procedure TIdeTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
 begin
   ImageIndex := ord(tn(node).outcome);
 end;
 
-procedure TTesterForm.tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
+procedure TIdeTesterForm.tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
 begin
   CellText := tn(node).description;
 end;
 
-function TTesterForm.nodeFactory(parent : TTestNode) : TTestNode;
+function TIdeTesterForm.nodeFactory(parent : TTestNode) : TTestNode;
 var
   p : PTestNodeData;
 begin
@@ -429,12 +459,12 @@ begin
   result.OnUpdate := refreshNode;
 end;
 
-procedure TTesterForm.refreshNode(test: TTestNode);
+procedure TIdeTesterForm.refreshNode(test: TTestNode);
 begin
   tvTests.InvalidateNode(test.node);
 end;
 
-procedure TTesterForm.LoadTree;
+procedure TIdeTesterForm.LoadTree;
 begin
   tvTests.Clear;
   FTestInfo.Clear;
@@ -454,18 +484,18 @@ end;
 
 // --- Test Selection Management -----------------------------------------------
 
-procedure TTesterForm.tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
+procedure TIdeTesterForm.tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
 begin
   FSelectedNode := tn(node);
   if FSelectedNode.hasChildren then
   begin
     actTestRunSelected.caption := 'Run these tests';
     actTestDebugSelected.caption := 'Debug these tests';
-    actionTestSelectAll.caption := 'Check these tests';
-    actionTestUnselectAll.caption := 'Uncheck these tests';
-    actionTestSelectAll.hint := 'Check selected tests + children';
-    actionTestUnselectAll.hint := 'Uncheck selected tests + children';
-    actionTestCopy.hint := 'Copy results to clipboard for selected tests';
+    actTestSelectAll.caption := 'Check these tests';
+    actTestUnselectAll.caption := 'Uncheck these tests';
+    actTestSelectAll.hint := 'Check selected tests + children';
+    actTestUnselectAll.hint := 'Uncheck selected tests + children';
+    actTestCopy.hint := 'Copy results to clipboard for selected tests';
     actTestRunSelected.caption := 'Run Selected Test + children';
     actTestDebugSelected.caption := 'Debug Selected Test + children';
   end
@@ -473,30 +503,30 @@ begin
   begin
     actTestRunSelected.caption := 'Run this test';
     actTestRunSelected.caption := 'Debug this test';
-    actionTestSelectAll.caption := 'Check this test';
-    actionTestUnselectAll.caption := 'Uncheck this test';
-    actionTestSelectAll.hint := 'Check selected test';
-    actionTestUnselectAll.hint := 'Uncheck selected test';
-    actionTestCopy.hint := 'Copy results to clipboard for selected test';
+    actTestSelectAll.caption := 'Check this test';
+    actTestUnselectAll.caption := 'Uncheck this test';
+    actTestSelectAll.hint := 'Check selected test';
+    actTestUnselectAll.hint := 'Uncheck selected test';
+    actTestCopy.hint := 'Copy results to clipboard for selected test';
     actTestRunSelected.caption := 'Run Selected Test';
     actTestDebugSelected.caption := 'Debug Selected Test';
   end;
   UpdateTotals;
 end;
 
-procedure TTesterForm.tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
+procedure TIdeTesterForm.tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
 begin
   UpdateTotals;
 end;
 
-procedure TTesterForm.tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
+procedure TIdeTesterForm.tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
 begin
   FSelectedNode := nil;
   UpdateTotals;
 end;
 
 
-procedure TTesterForm.loadState;
+procedure TIdeTesterForm.loadState;
 var
   ss, so : String;
   i : integer;
@@ -530,7 +560,7 @@ begin
   tvTests.EndUpdate;
 end;
 
-procedure TTesterForm.saveState;
+procedure TIdeTesterForm.saveState;
 var
   bs, bo : TStringBuilder;
   ti : TTestNode;
@@ -552,7 +582,7 @@ begin
   end;
 end;
 
-procedure TTesterForm.setTestState(node: TTestNode; state: TTestCheckState);
+procedure TIdeTesterForm.setTestState(node: TTestNode; state: TTestCheckState);
 var
   ti : TTestNode;
 begin
@@ -561,7 +591,7 @@ begin
     setTestState(ti, state);
 end;
 
-procedure TTesterForm.checkStateOfChildren(node: TTestNode);
+procedure TIdeTesterForm.checkStateOfChildren(node: TTestNode);
 var
   state : TTestCheckState;
   ti : TTestNode;
@@ -578,7 +608,7 @@ begin
   end;
 end;
 
-procedure TTesterForm.actionTestSelectAllExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestSelectAllExecute(Sender: TObject);
 var
   node : TTestNode;
 begin
@@ -591,7 +621,7 @@ begin
   UpdateTotals;
 end;
 
-procedure TTesterForm.actionTestUnselectAllExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestUnselectAllExecute(Sender: TObject);
 var
   node : TTestNode;
 begin
@@ -606,7 +636,7 @@ end;
 
 // ---- Test Execution Control -------------------------------------------------
 
-procedure TTesterForm.actTestRunCheckedExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestRunCheckedExecute(Sender: TObject);
 var
   ti : TTestNode;
 begin
@@ -626,10 +656,10 @@ begin
     FThread.FreeOnTerminate := true;
   end
   else
-    ShowMessage('No Tests Checked');
+    ShowMessage(rs_IdeTester_Err_No_Tests);
 end;
 
-procedure TTesterForm.actTestRunSelectedExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestRunSelectedExecute(Sender: TObject);
 var
   node, ti : TTestNode;
 begin
@@ -652,12 +682,12 @@ begin
   end;
 end;
 
-procedure TTesterForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TIdeTesterForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := FRunningTest = nil;
 end;
 
-procedure TTesterForm.actionTestRunFailedExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestRunFailedExecute(Sender: TObject);
 var
   ti : TTestNode;
 begin
@@ -681,10 +711,10 @@ begin
     FThread.FreeOnTerminate := true;
   end
   else
-    ShowMessage('No Failed Tests');
+    ShowMessage(rs_IdeTester_Err_No_FailedTests);
 end;
 
-procedure TTesterForm.actionTestResetExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestResetExecute(Sender: TObject);
 var
   ti : TTestNode;
 begin
@@ -696,17 +726,17 @@ begin
   UpdateTotals;
 end;
 
-procedure TTesterForm.actionTestStopExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestStopExecute(Sender: TObject);
 begin
   FWantStop := true;
   if engine.canTerminate then
   begin
     FKillTime := GetTickCount64 + StrToInt(store.read('killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
-    actionTestStop.ImageIndex := 14;
+    actTestStop.ImageIndex := 14;
   end;
 end;
 
-procedure TTesterForm.setDoExecute(node : TTestNode);
+procedure TIdeTesterForm.setDoExecute(node : TTestNode);
 var
   child : TTestNode;
 begin
@@ -716,7 +746,7 @@ begin
     setDoExecute(child);
 end;
 
-procedure TTesterForm.setDoExecuteParent(node: TTestNode);
+procedure TIdeTesterForm.setDoExecuteParent(node: TTestNode);
 begin
   if node <> nil then
   begin
@@ -727,7 +757,7 @@ end;
 
 // -- Actually executing the tests ---------------------------------------------
 
-procedure TTesterForm.pbBarPaint(Sender: TObject);
+procedure TIdeTesterForm.pbBarPaint(Sender: TObject);
 var
   msg: string;
   OldStyle: TBrushStyle;
@@ -751,9 +781,9 @@ begin
       else
         Canvas.Brush.Color := clGreen;
       Canvas.Rectangle(0, 0, round(FTestsCount / (FTestsTotal) * Width), Height);
-      msg := Format(rsRuns, [IntToStr(FTestsCount), IntToStr(FTestsTotal)]);
-      msg := Format(rsErrors, [msg, IntToStr(FErrorCount)]);
-      msg := Format(rsFailures, [msg, IntToStr(FFailCount)]);
+      msg := Format(rs_IdeTester_PBar_Runs, [IntToStr(FTestsCount), IntToStr(FTestsTotal)]);
+      msg := Format(rs_IdeTester_PBar_Errors, [msg, IntToStr(FErrorCount)]);
+      msg := Format(rs_IdeTester_PBar_Failures, [msg, IntToStr(FFailCount)]);
       OldStyle := Canvas.Brush.Style;
       Canvas.Brush.Style := bsClear;
       Canvas.Textout(6, 2,  msg);
@@ -763,7 +793,7 @@ begin
   end;
 end;
 
-procedure TTesterForm.Timer1Timer(Sender: TObject);
+procedure TIdeTesterForm.Timer1Timer(Sender: TObject);
 var
   list : TTestEventQueue;
   ev : TTestEvent;
@@ -800,7 +830,7 @@ begin
           begin
             ev.node.outcome := toRunning;
             ev.node.parent.outcome := toChildRunning;
-            lblStatus.caption := 'Running Test '+ev.node.testName;
+            lblStatus.caption := rs_IdeTester_Msg_Running_Test + ev.node.testName;
           end;
         tekEnd:
           begin
@@ -827,7 +857,7 @@ begin
           end;
         tekHalt:
           begin
-            ev.node.ExceptionMessage := 'Process terminated!';
+            ev.node.ExceptionMessage := rs_IdeTester_Msg_Process_Terminated;
             ev.node.outcome := toHalt;
             Inc(FErrorCount);
             lblStatus.caption := '';
@@ -857,7 +887,7 @@ begin
     killRunningTests;
 end;
 
-procedure TTesterForm.EndTestSuite(ATest: TTestNode);
+procedure TIdeTesterForm.EndTestSuite(ATest: TTestNode);
 var
   outcome : TTestOutcome;
   child : TTestNode;
@@ -878,7 +908,7 @@ begin
   ATest.finish;
 end;
 
-procedure TTesterForm.StartTestRun;
+procedure TIdeTesterForm.StartTestRun;
 var
   ti : TTestNode;
 begin
@@ -897,12 +927,12 @@ begin
       FSession.skipTest(ti);
 end;
 
-procedure TTesterForm.FinishTestRun;
+procedure TIdeTesterForm.FinishTestRun;
 begin
   FThread := nil;
   FRunningTest := nil;
   FKillTime := 0;
-  actionTestStop.ImageIndex := 3;
+  actTestStop.ImageIndex := 3;
   engine.finishTestRun(FSession);
   FSession := nil;
   Timer1.Enabled := false;
@@ -912,19 +942,19 @@ begin
   pbBarPaint(pbBar);
 end;
 
-procedure TTesterForm.actionTestCopyExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestCopyExecute(Sender: TObject);
 begin
   Clipboard.AsText := FSelectedNode.details('');
 end;
 
-procedure TTesterForm.actionTestReloadExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestReloadExecute(Sender: TObject);
 begin
   LoadTree;
   LoadState;
   UpdateTotals;
 end;
 
-procedure TTesterForm.actTestDebugSelectedExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestDebugSelectedExecute(Sender: TObject);
 var
   node, ti : TTestNode;
 begin
@@ -941,13 +971,34 @@ begin
       if ti.execute and (not ti.hasChildren) then
         inc(FTestsTotal);
     FRunningTest := node;
-    StartTestRun;
-    FThread := TTestThread.create(self, true);
-    FThread.FreeOnTerminate := true;
+
+    // we don't support debugging yet, so we just allow users to copy parameters
+    IDETesterDebugForm := TIDETesterDebugForm.create(self);
+    try
+      IDETesterDebugForm.edtParamsRunSelected.text := engine.paramsForTest(FRunningTest);
+      FSession := engine.prepareToRunTests;
+      try
+        for ti in FTestInfo do
+          if not ti.execute then
+            FSession.skipTest(ti);
+        IDETesterDebugForm.edtParamsChecked.text := engine.paramsForCheckedTests(FRunningTest, FSession);
+      finally
+        FreeAndNil(FSession);
+      end;
+      IDETesterDebugForm.edtParamsLoad.text := engine.paramsForLoad;
+      IDETesterDebugForm.edtExecutable.text := engine.executableName;
+      IDETesterDebugForm.ShowModal;
+    finally
+      FreeAndNil(IDETesterDebugForm);
+    end;
+    FRunningTest := nil;
+    //StartTestRun;
+    //FThread := TTestThread.create(self, true);
+    //FThread.FreeOnTerminate := true;
   end;
 end;
 
-procedure TTesterForm.actionTestConfigureExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestConfigureExecute(Sender: TObject);
 begin
   IDETesterSettings := TIDETesterSettings.create(self);
   try
@@ -969,12 +1020,12 @@ end;
 
 // -- test thread  - no UI access ----------------------------------------------
 
-procedure TTesterForm.DoExecuteTests(debug : boolean);
+procedure TIdeTesterForm.DoExecuteTests(debug : boolean);
 begin
   engine.runTest(FSession, FRunningTest, debug);
 end;
 
-procedure TTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
+procedure TIdeTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
 var
   ev : TTestEvent;
 begin
@@ -993,13 +1044,10 @@ begin
     Abort;
 end;
 
-procedure TTesterForm.killRunningTests;
+procedure TIdeTesterForm.killRunningTests;
 begin
   if FSession <> nil then
     engine.terminateTests(FSession);
-  //if (not FRunningTest.hasChildren) then
-  //  EndTestSuite(FRunningTest);
-  //queueEvent(FRunningTest, tekEndRun, '', '');
 end;
 
 end.

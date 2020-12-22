@@ -20,9 +20,9 @@ begin
   RequireDerivedFormResource:=True;
   Application.Scaled:=True;
   Application.Initialize;
-  Application.CreateForm(TTesterForm, TesterForm);
+  Application.CreateForm(TIdeTesterForm, IdeTesterForm);
   if getCommandLineParam('test', fn) then
-    TesterForm.engine := TTestEngineExternalCmdLine.create(fn);
+    IdeTesterForm.engine := TTestEngineExternalCmdLine.create(fn);
   Application.Run;
 end.
 

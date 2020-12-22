@@ -7,6 +7,7 @@ object IDETesterSettings: TIDETesterSettings
   Caption = 'IDE Tester Settings'
   ClientHeight = 159
   ClientWidth = 424
+  OnCreate = FormCreate
   Position = poOwnerFormCenter
   LCLVersion = '2.1.0.0'
   object Panel1: TPanel
@@ -19,7 +20,7 @@ object IDETesterSettings: TIDETesterSettings
     ClientHeight = 38
     ClientWidth = 424
     TabOrder = 0
-    object Button1: TButton
+    object btnOk: TButton
       Left = 262
       Height = 25
       Top = 6
@@ -30,7 +31,7 @@ object IDETesterSettings: TIDETesterSettings
       ModalResult = 1
       TabOrder = 0
     end
-    object Button2: TButton
+    object btnCancel: TButton
       Left = 344
       Height = 25
       Top = 6
@@ -40,6 +41,19 @@ object IDETesterSettings: TIDETesterSettings
       Caption = 'Cancel'
       ModalResult = 2
       TabOrder = 1
+    end
+    object lblhelp: TLabel
+      Cursor = crHandPoint
+      Left = 10
+      Height = 15
+      Top = 10
+      Width = 25
+      Caption = 'Help'
+      Font.Color = clNavy
+      Font.Style = [fsUnderline]
+      ParentColor = False
+      ParentFont = False
+      OnClick = lblhelpClick
     end
   end
   object pnlKillTime: TPanel
@@ -51,7 +65,7 @@ object IDETesterSettings: TIDETesterSettings
     ClientHeight = 60
     ClientWidth = 424
     TabOrder = 1
-    object Label1: TLabel
+    object lblTimeout: TLabel
       Left = 10
       Height = 15
       Top = 10
@@ -78,7 +92,7 @@ object IDETesterSettings: TIDETesterSettings
     ClientHeight = 60
     ClientWidth = 424
     TabOrder = 2
-    object Label2: TLabel
+    object lblExecutionParameters: TLabel
       Left = 10
       Height = 15
       Top = 10

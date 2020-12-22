@@ -54,6 +54,11 @@ type
     function doesReload : boolean; override;
     function canDebug : boolean; override;
 
+    function paramsForTest(test : TTestNode) : String; override;
+    function paramsForCheckedTests(test : TTestNode; session : TTestSession) : String; override;
+    function paramsForLoad() : String; override;
+    function executableName() : String; override;
+
     function prepareToRunTests : TTestSession; override;
     procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); override;
     procedure terminateTests(session: TTestSession); override;
@@ -94,7 +99,7 @@ function TTestEngineDirectListener.findNode(test : TTest; optional : boolean) : 
 begin
   result := findTestInNode(test, FRoot);
   if (result = nil) and not optional then
-    raise Exception.create('Test not found!'); // this really shouldn't happen
+    raise Exception.create(Format(rs_IdeTester_Err_Node_Not_Found, [test.TestName])); // this really shouldn't happen
 end;
 
 function TTestEngineDirectListener.makeError(err : TTestFailure) : TTestError;
@@ -238,6 +243,26 @@ begin
   result := false;
 end;
 
+function TTestEngineDirect.paramsForTest(test: TTestNode): String;
+begin
+  result := 'n/a';
+end;
+
+function TTestEngineDirect.paramsForCheckedTests(test: TTestNode; session : TTestSession): String;
+begin
+  result := 'n/a';
+end;
+
+function TTestEngineDirect.paramsForLoad(): String;
+begin
+  result := 'n/a';
+end;
+
+function TTestEngineDirect.executableName(): String;
+begin
+  result := 'n/a';
+end;
+
 function TTestEngineDirect.prepareToRunTests: TTestSession;
 begin
   result := TTestSessionDirect.Create;
@@ -267,9 +292,9 @@ begin
   end;
 end;
 
-procedure TTestEngineDirect.terminateTests;
+procedure TTestEngineDirect.terminateTests(session: TTestSession);
 begin
-  raise Exception.create('not supported here');
+  raise Exception.create(rs_IdeTester_Msg_NOT_SUPPORTED);
 end;
 
 procedure TTestEngineDirect.finishTestRun(session: TTestSession);

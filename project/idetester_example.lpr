@@ -20,7 +20,7 @@ begin
   begin
     Application.Scaled:=True;
     Application.Initialize;
-    Application.CreateForm(TTesterForm, TesterForm);
+    Application.CreateForm(TIdeTesterForm, IdeTesterForm);
     Application.Title := 'FPCUnit test runner';
     Application.Run;
     Application.Free;

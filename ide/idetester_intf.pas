@@ -33,15 +33,16 @@ begin
     DebugLn(['ERROR: CreateIDETester: there is already a form with the name "IDETester"']);
     exit;
   end;
-  IDEWindowCreators.CreateForm(AForm, TTesterForm, true, LazarusIDE.OwningComponent);
+  IDEWindowCreators.CreateForm(AForm, TIdeTesterForm, true, LazarusIDE.OwningComponent);
   AForm.Name := aFormName;
-  TesterForm := AForm as TTesterForm;
+  IdeTesterForm := AForm as TIdeTesterForm;
   if not DoDisableAutoSizing then
     AForm.EnableAutoSizing;
 
   // ide tester specific stuff
   engine := TTestEngineIDE.create;
-  TesterForm.engine := engine;
+  IdeTesterForm.caption := rs_IdeTester_Caption_View;
+  IdeTesterForm.engine := engine;
   LazarusIDE.AddHandlerOnProjectOpened(engine.openProject, false);
 end;
 
@@ -57,12 +58,12 @@ begin
   IDECommand := nil;
   if IDECommandCategory <> nil then
   begin
-    IDECommand := RegisterIDECommand(IDECommandCategory, rsLazarusIDETester_Name, rsLazarusIDETester_Desc, IDEShortCutX, nil, @IDEMenuSectionClicked);
+    IDECommand := RegisterIDECommand(IDECommandCategory, rs_IdeTester_Name, rs_IdeTester_Caption, IDEShortCutX, nil, @IDEMenuSectionClicked);
     if IDECommand <> nil then
       RegisterIDEButtonCommand(IDECommand);
   end;
-  RegisterIDEMenuCommand(itmViewMainWindows, rsLazarusIDETester_Name, rsLazarusIDETester_Desc, nil, @IDEMenuSectionClicked, IDECommand);
-  RegisterIDEMenuCommand(ComponentPalettePageDropDownExtraEntries, rsLazarusIDETester_Name, rsLazarusIDETester_Desc, nil, @IDEMenuSectionClicked, nil);
+  RegisterIDEMenuCommand(itmViewMainWindows, rs_IdeTester_Name, rs_IdeTester_Caption, nil, @IDEMenuSectionClicked, IDECommand);
+  RegisterIDEMenuCommand(ComponentPalettePageDropDownExtraEntries, rs_IdeTester_Name, rs_IdeTester_Caption, nil, @IDEMenuSectionClicked, nil);
 
   // register dockable Window
   // default place at left=200, top=100, right=400, bottom=400

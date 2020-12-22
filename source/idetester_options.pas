@@ -5,21 +5,25 @@ unit idetester_options;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, LCLIntf,
+  idetester_strings;
 
 type
   { TIDETesterSettings }
 
   TIDETesterSettings = class(TForm)
-    Button1: TButton;
-    Button2: TButton;
+    btnOk: TButton;
+    btnCancel: TButton;
     edtParameters: TEdit;
     editWaitTime: TEdit;
-    Label1: TLabel;
-    Label2: TLabel;
+    lblhelp: TLabel;
+    lblTimeout: TLabel;
+    lblExecutionParameters: TLabel;
     Panel1: TPanel;
     pnlKillTime: TPanel;
     pnlParameters: TPanel;
+    procedure FormCreate(Sender: TObject);
+    procedure lblhelpClick(Sender: TObject);
   private
 
   public
@@ -32,6 +36,22 @@ var
 implementation
 
 {$R *.lfm}
+
+{ TIDETesterSettings }
+
+procedure TIDETesterSettings.lblhelpClick(Sender: TObject);
+begin
+  OpenURL(helpUrl);
+end;
+
+procedure TIDETesterSettings.FormCreate(Sender: TObject);
+begin
+  btnOk.Caption := rs_IdeTester_Caption_OK;
+  btnCancel.Caption := rs_IdeTester_Caption_Cancel;
+  lblhelp.caption := rs_IdeTester_Caption_Help;
+  lblTimeout.caption := rs_IdeTester_Caption_Options_Label_Parameters;
+  lblExecutionParameters.Caption := rs_IdeTester_Caption_Options_Label_Timeout;
+end;
 
 end.
 

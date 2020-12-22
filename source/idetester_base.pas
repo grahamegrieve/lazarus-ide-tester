@@ -140,6 +140,11 @@ type
     function hasParameters : boolean; virtual;
     property parameters : String read FParameters write FParameters;
 
+    function paramsForTest(test : TTestNode) : String; virtual; abstract;
+    function paramsForCheckedTests(test : TTestNode; session : TTestSession) : String; virtual; abstract;
+    function paramsForLoad() : String; virtual; abstract;
+    function executableName() : String; virtual; abstract;
+
     function prepareToRunTests : TTestSession; virtual; abstract; // get ready to run tests - do whatever is requred (e.g. compile in the ide)
 
     procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
@@ -196,7 +201,7 @@ end;
 function TTestNode.description: String;
 begin
   if FParent = nil then
-    result := rsAllTests
+    result := rs_IdeTester_Msg_AllTests
   else
     result := testName;
 
@@ -204,7 +209,7 @@ begin
   begin
     result := result + ' (';
     if (FChildren.Count > 0) then
-      result := result + inttostr(testCount)+' tests';
+      result := result + inttostr(testCount)+' '+rs_IdeTester_SBar_Tests;
     if (FDuration > -1) and (FChildren.Count > 0) then
       result := result + ', ';
     if FDuration > -1 then
@@ -228,7 +233,7 @@ begin
     begin
       result := result + ' (';
       if (FChildren.Count > 0) then
-        result := result + inttostr(testCount)+' tests';
+        result := result + inttostr(testCount)+' '+rs_IdeTester_SBar_Tests;
       if (FDuration > -1) and (FChildren.Count > 0) then
         result := result + ', ';
       if FDuration > -1 then
@@ -247,13 +252,13 @@ begin
     b := TStringBuilder.create;
     try
       if FParent = nil then
-        tn := rsAllTests
+        tn := rs_IdeTester_Msg_AllTests
       else
         tn := TestName;
-      b.append(indent+'-- '+tn+' Starts ---------------------------------'+#13#10);
+      b.append(indent+'-- '+tn+' '+rs_IdeTester_Msg_Starts+' ---------------------------------'+#13#10);
       for child in FChildren do
         b.append(child.details(indent+'  '));
-      b.append(indent+'-- '+tn+' Ends -----------------------------------'+#13#10);
+      b.append(indent+'-- '+tn+' '+rs_IdeTester_Msg_Ends+' -----------------------------------'+#13#10);
       result := b.toString;
     finally
       b.free;
@@ -304,18 +309,6 @@ begin
   FDuration := AValue;
   // don't do this - we're probably in the test thread, and update will be called later...   FOnUpdate(self);
 end;
-
-//{ TTestNodeList }
-//
-//function TTestNodeList.forTest(test: TTest): TTestNode;
-//var
-//  ti : TTestNode;
-//begin
-//  result := nil;
-//  for ti in self do
-//    if ti.test = test then
-//      exit(ti);
-//end;
 
 end.
 

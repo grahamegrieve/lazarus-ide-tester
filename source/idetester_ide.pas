@@ -11,14 +11,26 @@ uses
   idetester_strings, idetester_base, idetester_external;
 
 type
+  { TTestEngineIDESession }
+
+  TTestEngineIDESession = class (TTestEngineExternalSession)
+  private
+    FExeName : String;
+  public
+    function compile : boolean;
+    property exeName : String read FExeName write FExeName;
+  end;
+
   { TTestEngineIDE }
 
   TTestEngineIDE = class (TTestEngineExternal)
   protected
-    function runProgram(params : TStringList; debug : boolean) : TProcess; override;
+    function runProgram(session : TTestEngineExternalSession; params : TStringList; debug : boolean) : TProcess; override;
     function autoLoad : boolean; override;
   public
+    function prepareToRunTests : TTestSession; override;
     function OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
+    function executableName() : String; override;
   end;
 
   { TTestSettingsProjectProvider }
@@ -62,32 +74,27 @@ end;
 
 { TTestEngineIDE }
 
-function TTestEngineIDE.runProgram(params: TStringList; debug : boolean): TProcess;
+function TTestEngineIDE.runProgram(session : TTestEngineExternalSession; params: TStringList; debug : boolean): TProcess;
 var
-  exeName : String;
+  sess : TTestEngineIDESession;
 begin
-  result := nil;
-  if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
-    ShowMessage(rsLazarusIDETester_Err_No_Project)
-  else if (LazarusIDE.ActiveProject.ExecutableType <> petProgram) then
-    ShowMessage(rsLazarusIDETester_Err_Project_Type+' ('+nameForType(LazarusIDE.ActiveProject.ExecutableType)+')')
+  if session = nil then
+    sess := TTestEngineIDESession.create
   else
-  begin
-    if LazarusIDE.DoBuildProject(crCompile, []) = mrOk then
+    sess := session as TTestEngineIDESession;
+  try
+    if sess.compile then
     begin
-      exeName := '$(TargetFile)';
-      if not IDEMacros.SubstituteMacros(exeName) then
-        ShowMessage(rsLazarusIDETester_Err_Project_Target)
-      else
-      begin
-        result := TProcess.create(nil);
-        result.Executable := exeName;
-        result.Parameters := params;
-        result.ShowWindow := swoHIDE;
-        result.Options := [poUsePipes];
-        result.Execute;
-      end;
+      result := TProcess.create(nil);
+      result.Executable := sess.FExeName;
+      result.Parameters := params;
+      result.ShowWindow := swoHIDE;
+      result.Options := [poUsePipes];
+      result.Execute;
     end;
+  finally
+    if session = nil then
+      sess.Free;
   end;
 end;
 
@@ -96,11 +103,58 @@ begin
   Result := false;
 end;
 
+function TTestEngineIDE.prepareToRunTests: TTestSession;
+begin
+  Result := TTestEngineIDESession.create;
+  (result as TTestEngineIDESession).compile;
+end;
+
 function TTestEngineIDE.OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
 begin
   OnClearTests(self);
   result := mrOk;
 end;
 
+function TTestEngineIDE.executableName(): String;
+var
+  en : String;
+begin
+  result := '';
+  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) then
+  begin
+    en := '$(TargetFile)';
+    IDEMacros.SubstituteMacros(en);
+    result := en;
+  end;
+end;
+
+{ TTestEngineIDESession }
+
+function TTestEngineIDESession.compile : boolean;
+var
+  en : String;
+begin
+  if FExeName <> '' then
+    exit(true);
+
+  result := false;
+  if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
+    ShowMessage(rs_IdeTester_Err_No_Project)
+  else if LazarusIDE.DoBuildProject(crCompile, []) = mrOk then
+  begin
+    en := '$(TargetFile)';
+    if not IDEMacros.SubstituteMacros(en) then
+      ShowMessage(rs_IdeTester_Err_Project_Target)
+    else if (LazarusIDE.ActiveProject.ExecutableType <> petProgram) then
+      ShowMessage(Format(rs_IdeTester_Err_Project_Type, [nameForType(LazarusIDE.ActiveProject.ExecutableType)]))
+    else
+    begin
+      result := true;
+      FExeName := en;
+    end;
+  end;
+end;
+
 end.
+
 
