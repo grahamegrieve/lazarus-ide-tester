@@ -125,11 +125,11 @@ type
   TTestEngine = class abstract (TObject)
   private
     FListener: TTestListener;
-    FOnClearTests: TNotifyEvent;
+    FOnReinitialise: TNotifyEvent;
     FParameters: String;
   public
     property listener : TTestListener read FListener write FListener;
-    property OnClearTests : TNotifyEvent read FOnClearTests write FOnClearTests;
+    property OnReinitialise : TNotifyEvent read FOnReinitialise write FOnReinitialise;
 
     procedure loadAllTests(factory : TNodeFactory; manual : boolean); virtual; abstract; // get a list of tests
     function threadMode : TTestEngineThreadMode; virtual; abstract;

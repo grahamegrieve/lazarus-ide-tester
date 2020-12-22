@@ -40,8 +40,9 @@ begin
     AForm.EnableAutoSizing;
 
   // ide tester specific stuff
-  engine := TTestEngineIDE.create;
   IdeTesterForm.caption := rs_IdeTester_Caption_View;
+  IdeTesterForm.store := TTestSettingsProjectProvider.create;
+  engine := TTestEngineIDE.create;
   IdeTesterForm.engine := engine;
   LazarusIDE.AddHandlerOnProjectOpened(engine.openProject, false);
 end;

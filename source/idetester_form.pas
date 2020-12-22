@@ -151,11 +151,12 @@ type
     FLoading : boolean;
 
     // -- utils ----
+    procedure SetEngine(AValue: TTestEngine);
     function tn(p: PVirtualNode): TTestNode;
     procedure UpdateTotals;
 
     // -- init ----
-    procedure doClearTests(sender : TObject);
+    procedure doReinitialise(sender : TObject);
     procedure LoadTree;
     function nodeFactory(parent : TTestNode) : TTestNode;
     procedure refreshNode(test : TTestNode);
@@ -178,7 +179,7 @@ type
     procedure EndTestSuite(ATest: TTestNode);
   public
     // these two must be set before the Form is shown
-    property engine : TTestEngine read FEngine write FEngine;
+    property engine : TTestEngine read FEngine write SetEngine;
     property store : TTestSettingsProvider read FStore write FStore; // either an ini in AppConfig, or stored in the project settings somewhere?
   end;
 
@@ -312,7 +313,7 @@ begin
     engine := TTestEngineDirect.create;
 
   engine.listener := TTesterFormListener.create(self);
-  engine.OnClearTests := doClearTests;
+  engine.OnReinitialise := doReinitialise;
   if engine.hasParameters then
     engine.parameters := store.read('parameters', '');
   if not engine.doesReload then
@@ -357,6 +358,12 @@ var
 begin
   pd := tvTests.GetNodeData(p);
   result := pd.node;
+end;
+
+procedure TIdeTesterForm.SetEngine(AValue: TTestEngine);
+begin
+  FEngine := AValue;
+  FEngine.OnReinitialise := doReinitialise;
 end;
 
 procedure TIdeTesterForm.UpdateTotals;
@@ -419,7 +426,7 @@ begin
   actTestReset.enabled := res;
 end;
 
-procedure TIdeTesterForm.doClearTests;
+procedure TIdeTesterForm.doReinitialise(sender: TObject);
 begin
   tvTests.Clear;
   FTestInfo.Clear;
@@ -427,6 +434,8 @@ begin
   FTestsTotal := 0;
   UpdateTotals;
   pbBarPaint(pbBar);
+  if engine.hasParameters then
+    engine.parameters := store.read('parameters', '');
   setActionStatus(false);
 end;
 
@@ -971,10 +980,13 @@ begin
       if ti.execute and (not ti.hasChildren) then
         inc(FTestsTotal);
     FRunningTest := node;
+  end;
 
-    // we don't support debugging yet, so we just allow users to copy parameters
-    IDETesterDebugForm := TIDETesterDebugForm.create(self);
-    try
+  // we don't support debugging yet, so we just allow users to copy parameters
+  IDETesterDebugForm := TIDETesterDebugForm.create(self);
+  try
+    if node <> nil then
+    begin
       IDETesterDebugForm.edtParamsRunSelected.text := engine.paramsForTest(FRunningTest);
       FSession := engine.prepareToRunTests;
       try
@@ -985,17 +997,23 @@ begin
       finally
         FreeAndNil(FSession);
       end;
-      IDETesterDebugForm.edtParamsLoad.text := engine.paramsForLoad;
-      IDETesterDebugForm.edtExecutable.text := engine.executableName;
-      IDETesterDebugForm.ShowModal;
-    finally
-      FreeAndNil(IDETesterDebugForm);
+    end
+    else
+    begin
+      IDETesterDebugForm.edtParamsChecked.text := '';
+      IDETesterDebugForm.edtParamsRunSelected.text := '';
     end;
-    FRunningTest := nil;
+
+    IDETesterDebugForm.edtParamsLoad.text := engine.paramsForLoad;
+    IDETesterDebugForm.edtExecutable.text := engine.executableName;
+    IDETesterDebugForm.ShowModal;
+  finally
+    FreeAndNil(IDETesterDebugForm);
+  end;
+  FRunningTest := nil;
     //StartTestRun;
     //FThread := TTestThread.create(self, true);
     //FThread.FreeOnTerminate := true;
-  end;
 end;
 
 procedure TIdeTesterForm.actTestConfigureExecute(Sender: TObject);

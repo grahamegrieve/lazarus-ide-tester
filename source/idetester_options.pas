@@ -49,8 +49,8 @@ begin
   btnOk.Caption := rs_IdeTester_Caption_OK;
   btnCancel.Caption := rs_IdeTester_Caption_Cancel;
   lblhelp.caption := rs_IdeTester_Caption_Help;
-  lblTimeout.caption := rs_IdeTester_Caption_Options_Label_Parameters;
-  lblExecutionParameters.Caption := rs_IdeTester_Caption_Options_Label_Timeout;
+  lblExecutionParameters.caption := rs_IdeTester_Caption_Options_Label_Parameters;
+  lblTimeout.Caption := rs_IdeTester_Caption_Options_Label_Timeout;
 end;
 
 end.

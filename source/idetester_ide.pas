@@ -56,7 +56,8 @@ end;
 
 procedure TTestSettingsProjectProvider.save(name, value: String);
 begin
-  LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value;
+  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) then
+    LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value;
 end;
 
 function nameForType(p : TProjectExecutableType) : String;
@@ -111,7 +112,8 @@ end;
 
 function TTestEngineIDE.OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
 begin
-  OnClearTests(self);
+  if assigned(OnReinitialise) then
+    OnReinitialise(self);
   result := mrOk;
 end;
 
