@@ -11,6 +11,7 @@ uses
 const
   CONSOLE_TIMEOUT = 4000; // how long we wait for input to start
   BUF_SIZE = 2048; // Buffer size for reading the output in chunks
+  EOL = {$IFDEF MSWINDOWS} #13#10 {$ELSE} #10 {$ENDIF};
 
 type
   { TTestNodeId }
@@ -179,9 +180,9 @@ var
   curr, s : String;
 begin
   curr := FCarry + text;
-  while curr.contains(#13#10) and not FFinished do
+  while curr.contains(EOL) and not FFinished do
   begin
-    StringSplit(curr, #13#10, s, curr);
+    StringSplit(curr, EOL, s, curr);
     event(s, FFinished);
   end;
   FCarry := curr;
