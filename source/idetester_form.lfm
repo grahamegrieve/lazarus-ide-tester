@@ -1,7 +1,7 @@
 object IdeTesterForm: TIdeTesterForm
-  Left = 1361
+  Left = 1309
   Height = 694
-  Top = 78
+  Top = 80
   Width = 439
   Caption = 'FPC Test Runner'
   ClientHeight = 694

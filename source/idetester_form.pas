@@ -149,7 +149,7 @@ type
     FShuttingDown : boolean;
     FThread : TTestThread;
     FKillTime : cardinal;
-    FLoading : boolean;
+    FLoading, FShown : boolean;
 
     // -- utils ----
     procedure SetEngine(AValue: TTestEngine);
@@ -308,32 +308,37 @@ end;
 
 procedure TIdeTesterForm.FormShow(Sender: TObject);
 begin
-  if store = nil then
-    store := TTestIniSettingsProvider.create(IncludeTrailingPathDelimiter(getAppConfigDir(false))+'fhir-tests-settings.ini');
-  if engine = nil then
-    engine := TTestEngineDirect.create;
+  if not FShown then
+  begin
+    FShown := true;
+    FLoading := true;
+    if store = nil then
+      store := TTestIniSettingsProvider.create(IncludeTrailingPathDelimiter(getAppConfigDir(false))+'fhir-tests-settings.ini');
+    if engine = nil then
+      engine := TTestEngineDirect.create;
 
-  engine.listener := TTesterFormListener.create(self);
-  engine.OnReinitialise := doReinitialise;
-  if engine.hasParameters then
-    engine.parameters := store.read('parameters', '');
-  if not engine.doesReload then
-  begin
-    tbBtnReload.visible := false;
-    tbBtnReloadSep.visible := false;
+    engine.listener := TTesterFormListener.create(self);
+    engine.OnReinitialise := doReinitialise;
+    if engine.hasParameters then
+      engine.parameters := store.read('parameters', '');
+    if not engine.doesReload then
+    begin
+      tbBtnReload.visible := false;
+      tbBtnReloadSep.visible := false;
+    end;
+    if not (engine.canTerminate or engine.hasParameters) then
+    begin
+      tbBtnConfigure.visible := false;
+    end;
+    if not engine.canDebug then
+    begin
+      tbBtnDebug.visible := false;
+      mnuDebug.visible := false;
+    end;
+    actTestReloadExecute(self);
+    pbBarPaint(pbBar);
+    FLoading := false;
   end;
-  if not (engine.canTerminate or engine.hasParameters) then
-  begin
-    tbBtnConfigure.visible := false;
-  end;
-  if not engine.canDebug then
-  begin
-    tbBtnDebug.visible := false;
-    mnuDebug.visible := false;
-  end;
-  actTestReloadExecute(self);
-  pbBarPaint(pbBar);
-  FLoading := false;
 end;
 
 procedure TIdeTesterForm.setActionStatus(running: boolean);
