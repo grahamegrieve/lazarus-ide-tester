@@ -140,6 +140,7 @@ type
     FTestInfo : TTestNodeList;
     FRunningTest : TTestNode;
     FTestsTotal, FTestsCount, FFailCount, FErrorCount : cardinal;
+    FStartTime, FEndTime : UInt64;
     FWantStop : boolean;
     FSelectedNode : TTestNode;
     FSession : TTestSession;
@@ -791,8 +792,12 @@ begin
         Canvas.Brush.Color := clGreen;
       Canvas.Rectangle(0, 0, round(FTestsCount / (FTestsTotal) * Width), Height);
       msg := Format(rs_IdeTester_PBar_Runs, [IntToStr(FTestsCount), IntToStr(FTestsTotal)]);
-      msg := Format(rs_IdeTester_PBar_Errors, [msg, IntToStr(FErrorCount)]);
       msg := Format(rs_IdeTester_PBar_Failures, [msg, IntToStr(FFailCount)]);
+      msg := Format(rs_IdeTester_PBar_Errors, [msg, IntToStr(FErrorCount)]);
+      if FEndTime <> 0 then
+        msg := Format(rs_IdeTester_PBar_TimeDone, [msg, IntToStr((FEndTime - FStartTime) div 1000)])
+      else
+        msg := Format(rs_IdeTester_PBar_Time, [msg, IntToStr((GetTickCount64 - FStartTime) div 1000)]);
       OldStyle := Canvas.Brush.Style;
       Canvas.Brush.Style := bsClear;
       Canvas.Textout(6, 2,  msg);
@@ -887,7 +892,8 @@ begin
           end;
       end;
     end;
-    pbbar.Refresh;
+    if FRunningTest <> nil then
+      pbbar.Refresh;
     Application.ProcessMessages;
   finally
     list.free;
@@ -934,6 +940,8 @@ begin
   for ti in FTestInfo do
     if not ti.execute then
       FSession.skipTest(ti);
+  FStartTime := GetTickCount64;
+  FEndTime := 0;
 end;
 
 procedure TIdeTesterForm.FinishTestRun;
@@ -941,6 +949,7 @@ begin
   FThread := nil;
   FRunningTest := nil;
   FKillTime := 0;
+  FEndTime := GetTickCount64;
   actTestStop.ImageIndex := 3;
   engine.finishTestRun(FSession);
   FSession := nil;

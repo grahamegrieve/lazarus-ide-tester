@@ -551,6 +551,7 @@ begin
   result := '-'+FPC_MAGIC_COMMAND+' -run '+(test.Data as TTestNodeId).id;
   if parameters <> '' then
     result := result + ' '+parameters;
+  result := result + ' -pause';
 end;
 
 function TTestEngineExternal.paramsForCheckedTests(test: TTestNode; session : TTestSession): String;
@@ -563,6 +564,7 @@ begin
     result := result +' -skip ' + sess.saveSkipList;
   if parameters <> '' then
     result := result + ' '+parameters;
+  result := result + ' -pause';
 end;
 
 function TTestEngineExternal.paramsForLoad(): String;
@@ -570,6 +572,7 @@ begin
   result := '-'+FPC_MAGIC_COMMAND;
   if parameters <> '' then
     result := result + ' '+parameters;
+  result := result + ' -pause';
 end;
 
 function TTestEngineExternal.prepareToRunTests: TTestSession;
@@ -653,6 +656,7 @@ function TTestEngineExternalCmdLine.runProgram(session : TTestEngineExternalSess
 begin
   result := TProcess.create(nil);
   result.Executable := FExecutable;
+  result.CurrentDirectory := ExtractFileDir(FExecutable);
   result.Parameters := params;
   result.ShowWindow := swoHIDE;
   result.Options := [poUsePipes];

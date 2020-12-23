@@ -88,6 +88,7 @@ begin
     begin
       result := TProcess.create(nil);
       result.Executable := sess.FExeName;
+      result.CurrentDirectory := ExtractFileDir(sess.FExeName);
       result.Parameters := params;
       result.ShowWindow := swoHIDE;
       result.Options := [poUsePipes];

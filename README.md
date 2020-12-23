@@ -15,12 +15,21 @@ Advantages of the IDE Tester:
 
 The IDETester has been tested and works on:
 * Windows
-* Linux (Ubuntu)
-* OSX (up to Big Sur)
+* Linux (Ubuntu 20.10)
+* OSX (Big Sur)
 
 Discussion on use at https://forum.lazarus.freepascal.org/index.php/board,13.0.html
 
 Issue report and PRs to https://github.com/grahamegrieve/lazarus-ide-tester
+
+# Todo
+
+Things still to do:
+
+* debug directly (needs changes to the debugger interface)
+* double click on the test to open the test in source 
+* add additional views (e.g. only show non-passing tests, flatten heirarchy)
+
 
 # User Documentation
 

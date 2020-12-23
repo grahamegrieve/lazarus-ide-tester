@@ -50,6 +50,8 @@ resourcestring
   rs_IdeTester_PBar_Runs = 'Tests: %s/%s';
   rs_IdeTester_PBar_Errors = '%s    Errors: %s';
   rs_IdeTester_PBar_Failures = '%s     Failures: %s';
+  rs_IdeTester_PBar_Time = '%s     Time: %ss...';
+  rs_IdeTester_PBar_TimeDone = '%s     Time: %ss';
 
   rs_IdeTester_SBar_Tests = 'Tests';
   rs_IdeTester_SBar_Checked = 'checked';
