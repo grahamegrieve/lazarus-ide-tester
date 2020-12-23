@@ -1,27 +1,27 @@
 object IDETesterDebugForm: TIDETesterDebugForm
-  Left = 1210
-  Height = 354
-  Top = -731
-  Width = 567
+  Left = 804
+  Height = 372
+  Top = 27
+  Width = 973
   BorderIcons = [biSystemMenu]
   Caption = 'IDETesterDebugForm'
-  ClientHeight = 354
-  ClientWidth = 567
+  ClientHeight = 372
+  ClientWidth = 973
   OnCreate = FormCreate
   Position = poOwnerFormCenter
   LCLVersion = '2.1.0.0'
   object Panel1: TPanel
     Left = 0
     Height = 38
-    Top = 316
-    Width = 567
+    Top = 334
+    Width = 973
     Align = alBottom
     BevelOuter = bvNone
     ClientHeight = 38
-    ClientWidth = 567
+    ClientWidth = 973
     TabOrder = 0
     object btnClose: TButton
-      Left = 486
+      Left = 892
       Height = 25
       Top = 6
       Width = 73
@@ -35,9 +35,9 @@ object IDETesterDebugForm: TIDETesterDebugForm
     object lblhelp: TLabel
       Cursor = crHandPoint
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 25
+      Width = 31
       Caption = 'Help'
       Font.Color = clNavy
       Font.Style = [fsUnderline]
@@ -48,19 +48,19 @@ object IDETesterDebugForm: TIDETesterDebugForm
   end
   object Panel2: TPanel
     Left = 0
-    Height = 50
+    Height = 68
     Top = 0
-    Width = 567
+    Width = 973
     Align = alTop
     BevelOuter = bvNone
-    ClientHeight = 50
-    ClientWidth = 567
+    ClientHeight = 68
+    ClientWidth = 973
     TabOrder = 1
     object lblExplanation: TLabel
       Left = 14
-      Height = 15
+      Height = 17
       Top = 17
-      Width = 46
+      Width = 59
       Caption = 'message'
       ParentColor = False
     end
@@ -68,33 +68,33 @@ object IDETesterDebugForm: TIDETesterDebugForm
   object pnlParameters: TPanel
     Left = 0
     Height = 60
-    Top = 50
-    Width = 567
+    Top = 68
+    Width = 973
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 60
-    ClientWidth = 567
+    ClientWidth = 973
     TabOrder = 2
     object lblParamsRunSelected: TLabel
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 226
+      Width = 294
       Caption = 'Parameters to execute current selected test'
       ParentColor = False
     end
     object edtParamsRunSelected: TEdit
       Left = 10
-      Height = 23
+      Height = 33
       Top = 28
-      Width = 472
+      Width = 878
       Anchors = [akTop, akLeft, akRight]
       ReadOnly = True
       TabOrder = 0
       Text = 'edtParamsRunSelected'
     end
     object btnCopyRunSelected: TButton
-      Left = 487
+      Left = 893
       Height = 23
       Top = 28
       Width = 67
@@ -107,32 +107,32 @@ object IDETesterDebugForm: TIDETesterDebugForm
   object pnlKillTime: TPanel
     Left = 0
     Height = 60
-    Top = 110
-    Width = 567
+    Top = 128
+    Width = 973
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 60
-    ClientWidth = 567
+    ClientWidth = 973
     TabOrder = 3
     object lblParamsRunChecked: TLabel
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 126
+      Width = 167
       Caption = 'Parameters to load tests'
       ParentColor = False
     end
     object edtParamsChecked: TEdit
       Left = 10
-      Height = 23
+      Height = 33
       Top = 28
-      Width = 469
+      Width = 875
       Anchors = [akTop, akLeft, akRight]
       TabOrder = 0
       Text = 'edtParamsChecked'
     end
     object btnCopyRunChecked: TButton
-      Left = 487
+      Left = 893
       Height = 23
       Top = 28
       Width = 67
@@ -145,32 +145,32 @@ object IDETesterDebugForm: TIDETesterDebugForm
   object pnlKillTime1: TPanel
     Left = 0
     Height = 60
-    Top = 230
-    Width = 567
+    Top = 248
+    Width = 973
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 60
-    ClientWidth = 567
+    ClientWidth = 973
     TabOrder = 4
     object lblExecutable: TLabel
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 57
+      Width = 74
       Caption = 'Executable'
       ParentColor = False
     end
     object edtExecutable: TEdit
       Left = 10
-      Height = 23
+      Height = 33
       Top = 28
-      Width = 469
+      Width = 875
       Anchors = [akTop, akLeft, akRight]
       TabOrder = 0
       Text = 'editWaitTime'
     end
     object btnOpenFolder: TButton
-      Left = 487
+      Left = 893
       Height = 23
       Top = 28
       Width = 67
@@ -183,32 +183,32 @@ object IDETesterDebugForm: TIDETesterDebugForm
   object pnlKillTime2: TPanel
     Left = 0
     Height = 60
-    Top = 170
-    Width = 567
+    Top = 188
+    Width = 973
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 60
-    ClientWidth = 567
+    ClientWidth = 973
     TabOrder = 5
     object lblParamsLoad: TLabel
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 126
+      Width = 167
       Caption = 'Parameters to load tests'
       ParentColor = False
     end
     object edtParamsLoad: TEdit
       Left = 10
-      Height = 23
+      Height = 33
       Top = 28
-      Width = 469
+      Width = 875
       Anchors = [akTop, akLeft, akRight]
       TabOrder = 0
       Text = 'edtParamsLoad'
     end
     object btnCopyLoad: TButton
-      Left = 487
+      Left = 893
       Height = 23
       Top = 28
       Width = 67
