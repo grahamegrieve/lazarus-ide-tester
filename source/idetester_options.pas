@@ -37,6 +37,15 @@ implementation
 
 {$R *.lfm}
 
+procedure switchButtons(btn1, btn2 : TControl);
+var
+  l : integer;
+begin
+  l := btn1.left;
+  btn1.left := btn2.left;
+  btn2.left := l;
+end;
+
 { TIDETesterSettings }
 
 procedure TIDETesterSettings.lblhelpClick(Sender: TObject);
@@ -51,6 +60,9 @@ begin
   lblhelp.caption := rs_IdeTester_Caption_Help;
   lblExecutionParameters.caption := rs_IdeTester_Caption_Options_Label_Parameters;
   lblTimeout.Caption := rs_IdeTester_Caption_Options_Label_Timeout;
+  {$IFNDEF WINDOWS}
+  switchButtons(btnOk, btnCancel);
+  {$ENDIF}
 end;
 
 end.

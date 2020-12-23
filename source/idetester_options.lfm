@@ -1,27 +1,27 @@
 object IDETesterSettings: TIDETesterSettings
-  Left = 825
-  Height = 159
-  Top = -583
-  Width = 424
+  Left = 783
+  Height = 179
+  Top = 187
+  Width = 435
   BorderIcons = [biSystemMenu]
   Caption = 'IDE Tester Settings'
-  ClientHeight = 159
-  ClientWidth = 424
+  ClientHeight = 179
+  ClientWidth = 435
   OnCreate = FormCreate
   Position = poOwnerFormCenter
   LCLVersion = '2.1.0.0'
   object Panel1: TPanel
     Left = 0
     Height = 38
-    Top = 121
-    Width = 424
+    Top = 141
+    Width = 435
     Align = alBottom
     BevelOuter = bvNone
     ClientHeight = 38
-    ClientWidth = 424
+    ClientWidth = 435
     TabOrder = 0
     object btnOk: TButton
-      Left = 262
+      Left = 273
       Height = 25
       Top = 6
       Width = 75
@@ -32,7 +32,7 @@ object IDETesterSettings: TIDETesterSettings
       TabOrder = 0
     end
     object btnCancel: TButton
-      Left = 344
+      Left = 355
       Height = 25
       Top = 6
       Width = 73
@@ -45,9 +45,9 @@ object IDETesterSettings: TIDETesterSettings
     object lblhelp: TLabel
       Cursor = crHandPoint
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 25
+      Width = 31
       Caption = 'Help'
       Font.Color = clNavy
       Font.Style = [fsUnderline]
@@ -58,26 +58,26 @@ object IDETesterSettings: TIDETesterSettings
   end
   object pnlKillTime: TPanel
     Left = 0
-    Height = 60
-    Top = 60
-    Width = 424
+    Height = 72
+    Top = 72
+    Width = 435
     Align = alTop
-    ClientHeight = 60
-    ClientWidth = 424
+    ClientHeight = 72
+    ClientWidth = 435
     TabOrder = 1
     object lblTimeout: TLabel
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 194
+      Width = 249
       Caption = 'Time to wait before killling tests (ms)'
       ParentColor = False
     end
     object editWaitTime: TEdit
       Left = 10
-      Height = 23
+      Height = 33
       Top = 28
-      Width = 405
+      Width = 416
       Anchors = [akTop, akLeft, akRight]
       TabOrder = 0
       Text = 'editWaitTime'
@@ -85,26 +85,26 @@ object IDETesterSettings: TIDETesterSettings
   end
   object pnlParameters: TPanel
     Left = 0
-    Height = 60
+    Height = 72
     Top = 0
-    Width = 424
+    Width = 435
     Align = alTop
-    ClientHeight = 60
-    ClientWidth = 424
+    ClientHeight = 72
+    ClientWidth = 435
     TabOrder = 2
     object lblExecutionParameters: TLabel
       Left = 10
-      Height = 15
+      Height = 17
       Top = 10
-      Width = 114
+      Width = 148
       Caption = 'Execution Parameters'
       ParentColor = False
     end
     object edtParameters: TEdit
       Left = 10
-      Height = 23
+      Height = 33
       Top = 28
-      Width = 405
+      Width = 416
       Anchors = [akTop, akLeft, akRight]
       TabOrder = 0
       Text = 'edtParameters'
