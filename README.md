@@ -53,8 +53,6 @@ The view has the following features
 * Run Failed Tests - run all tests currently in failed status (including error) 
 * Stop Test Run - Stop the current test run 
 * Run Checked Tests - Run the set of tests that are checked
-* Check Test(s) - check the selected tests, and any children
-* Uncheck Test(s) - uncheck the selected tests, and any children
 * Clear outcomes - forgot all the remembered outcomes
 * Copy - copy the test outcome details to the clipboard
 * Configure - Set configuration options (see below)
@@ -64,6 +62,9 @@ This tree contains all the registered FPCUnit tests, and displays their status. 
 test status can be one of:
 
 ![outcomes](https://github.com/grahamegrieve/lazarus-ide-tester/blob/main/doco/outcomes.png)
+
+You can also check and uncheck tests in the tree
+
 
 ### Status Bar:
 
