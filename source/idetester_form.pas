@@ -794,10 +794,13 @@ begin
       msg := Format(rs_IdeTester_PBar_Runs, [IntToStr(FTestsCount), IntToStr(FTestsTotal)]);
       msg := Format(rs_IdeTester_PBar_Failures, [msg, IntToStr(FFailCount)]);
       msg := Format(rs_IdeTester_PBar_Errors, [msg, IntToStr(FErrorCount)]);
-      if FEndTime <> 0 then
-        msg := Format(rs_IdeTester_PBar_TimeDone, [msg, IntToStr((FEndTime - FStartTime) div 1000)])
-      else
-        msg := Format(rs_IdeTester_PBar_Time, [msg, IntToStr((GetTickCount64 - FStartTime) div 1000)]);
+      if FStartTime <> 0 then
+      begin
+        if FEndTime <> 0 then
+          msg := Format(rs_IdeTester_PBar_TimeDone, [msg, IntToStr((FEndTime - FStartTime) div 1000)])
+        else
+          msg := Format(rs_IdeTester_PBar_Time, [msg, IntToStr((GetTickCount64 - FStartTime) div 1000)]);
+      end;
       OldStyle := Canvas.Brush.Style;
       Canvas.Brush.Style := bsClear;
       Canvas.Textout(6, 2,  msg);
@@ -928,6 +931,7 @@ var
   ti : TTestNode;
 begin
   saveState;
+  FStartTime := 0;
   FWantStop := false;
   FTestsCount := 0;
   FFailCount := 0;
