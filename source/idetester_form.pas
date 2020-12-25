@@ -151,6 +151,7 @@ type
 
     // -- utils ----
     procedure SetEngine(AValue: TTestEngine);
+    procedure SetStore(AValue: TTestSettingsProvider);
     function tn(p: PVirtualNode): TTestNode;
     procedure UpdateTotals;
 
@@ -179,7 +180,7 @@ type
   public
     // these two must be set before the Form is shown
     property engine : TTestEngine read FEngine write SetEngine;
-    property store : TTestSettingsProvider read FStore write FStore; // either an ini in AppConfig, or stored in the project settings somewhere?
+    property store : TTestSettingsProvider read FStore write SetStore; // either an ini in AppConfig, or stored in the project settings somewhere?
   end;
 
 var IdeTesterForm : TIdeTesterForm;
@@ -316,15 +317,12 @@ begin
       engine := TTestEngineDirect.create;
 
     engine.listener := TTesterFormListener.create(self);
-    engine.OnReinitialise := doReinitialise;
-    if engine.hasParameters then
-      engine.parameters := store.read('parameters', '');
     if not engine.doesReload then
     begin
       tbBtnReload.visible := false;
       tbBtnReloadSep.visible := false;
     end;
-    if not (engine.canTerminate or engine.hasParameters) then
+    if not (engine.canTerminate or engine.hasParameters or engine.hasTestProject) then
     begin
       tbBtnConfigure.visible := false;
     end;
@@ -351,7 +349,7 @@ begin
   actTestRunFailed.Enabled := not running;
   actTestRunChecked.Enabled := not running;
   actTestRunSelected.Enabled := not running;
-  actTestDebugSelected.Enabled := not running;
+  actTestDebugSelected.Enabled := not running and (store.read(tsmConfig, 'testproject', '') <> '');
 end;
 
 // -- Tree Management ----------------------------------------------------------
@@ -368,6 +366,15 @@ procedure TIdeTesterForm.SetEngine(AValue: TTestEngine);
 begin
   FEngine := AValue;
   FEngine.OnReinitialise := doReinitialise;
+  FEngine.settings := store;
+end;
+
+procedure TIdeTesterForm.SetStore(AValue: TTestSettingsProvider);
+begin
+  if FStore = AValue then Exit;
+  FStore := AValue;
+  if engine <> nil then
+    engine.settings := store;
 end;
 
 procedure TIdeTesterForm.UpdateTotals;
@@ -438,8 +445,6 @@ begin
   FTestsTotal := 0;
   UpdateTotals;
   pbBarPaint(pbBar);
-  if engine.hasParameters then
-    engine.parameters := store.read('parameters', '');
   setActionStatus(false);
 end;
 
@@ -547,10 +552,10 @@ var
 begin
   tvTests.BeginUpdate;
 
-  if (store.read('Count', '0') = inttostr(FTestInfo.Count)) then
+  if (store.read(tsmStatus, 'Count', '0') = inttostr(FTestInfo.Count)) then
   begin
-    ss := store.Read('States', '');
-    so := store.Read('Outcomes', '');
+    ss := store.Read(tsmStatus, 'States', '');
+    so := store.Read(tsmStatus, 'Outcomes', '');
     for i := 0 to FTestInfo.count - 1 do
     begin
       ti := FTestInfo[i];
@@ -586,9 +591,9 @@ begin
       bs.append(inttostr(ord(ti.checkState)));
       bo.append(inttostr(ord(ti.outcome)));
     end;
-    store.save('Count', inttostr(FTestInfo.Count));
-    store.save('States', bs.toString);
-    store.save('Outcomes', bo.toString);
+    store.save(tsmStatus, 'Count', inttostr(FTestInfo.Count));
+    store.save(tsmStatus, 'States', bs.toString);
+    store.save(tsmStatus, 'Outcomes', bo.toString);
   finally
     bo.Free;
     bs.Free;
@@ -744,7 +749,7 @@ begin
   FWantStop := true;
   if engine.canTerminate then
   begin
-    FKillTime := GetTickCount64 + StrToInt(store.read('killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
+    FKillTime := GetTickCount64 + StrToInt(store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
     actTestStop.ImageIndex := 14;
   end;
 end;
@@ -849,6 +854,8 @@ begin
         tekStart:
           begin
             ev.node.outcome := toRunning;
+            ev.node.ExceptionClassName := '';
+            ev.node.ExceptionMessage := '';
             ev.node.parent.outcome := toChildRunning;
             lblStatus.caption := rs_IdeTester_Msg_Running_Test + ev.node.testName;
           end;
@@ -1038,13 +1045,16 @@ begin
   try
     IDETesterSettings.pnlKillTime.visible := engine.canTerminate;
     IDETesterSettings.pnlParameters.visible := engine.hasParameters;
-    IDETesterSettings.editWaitTime.Text := store.read('killtime', inttostr(DEFAULT_KILL_TIME_DELAY));
-    IDETesterSettings.edtParameters.text := store.read('parameters', '');
+    IDETesterSettings.pnlTester.visible := engine.hasTestProject;
+    IDETesterSettings.editWaitTime.Text := store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY));
+    IDETesterSettings.edtParameters.text := store.read(tsmConfig, 'parameters', '');
+    IDETesterSettings.edtTester.text := store.read(tsmConfig, 'testproject', '');
     if IDETesterSettings.showModal = mrOk then
     begin
-      store.save('parameters', IDETesterSettings.edtParameters.text);
-      engine.parameters := IDETesterSettings.edtParameters.text;
-      store.save('killtime', IDETesterSettings.editWaitTime.Text);
+      store.save(tsmConfig, 'parameters', IDETesterSettings.edtParameters.text);
+      store.save(tsmConfig, 'testproject', IDETesterSettings.edtTester.text);
+      store.save(tsmConfig, 'killtime', IDETesterSettings.editWaitTime.Text);
+      UpdateActions;
     end;
 
   finally

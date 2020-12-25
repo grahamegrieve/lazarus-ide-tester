@@ -506,7 +506,7 @@ procedure TTestEngineExternal.addBaseParams(st: TStringList);
 var
   l , r : String;
 begin
-  r := parameters;
+  r := settings.parameters;
   while (r <> '') do
   begin
     StringSplit(r, ' ', l, r);
@@ -550,8 +550,8 @@ end;
 function TTestEngineExternal.paramsForTest(test: TTestNode): String;
 begin
   result := '-'+FPC_MAGIC_COMMAND+' -run '+(test.Data as TTestNodeId).id;
-  if parameters <> '' then
-    result := result + ' '+parameters;
+  if settings.parameters <> '' then
+    result := result + ' '+settings.parameters;
   result := result + ' -pause';
 end;
 
@@ -563,16 +563,16 @@ begin
   sess := session as TTestEngineExternalSession;
   if sess.FSkipList.count > 0 then
     result := result +' -skip ' + sess.saveSkipList;
-  if parameters <> '' then
-    result := result + ' '+parameters;
+  if settings.parameters <> '' then
+    result := result + ' '+settings.parameters;
   result := result + ' -pause';
 end;
 
 function TTestEngineExternal.paramsForLoad(): String;
 begin
   result := '-'+FPC_MAGIC_COMMAND;
-  if parameters <> '' then
-    result := result + ' '+parameters;
+  if settings.parameters <> '' then
+    result := result + ' '+settings.parameters;
   result := result + ' -pause';
 end;
 

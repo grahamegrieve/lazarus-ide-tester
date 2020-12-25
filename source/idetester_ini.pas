@@ -19,8 +19,8 @@ type
     constructor Create(path : String);
     destructor Destroy; override;
 
-    function read(name, defValue : String) : String; override;
-    procedure save(name, value : String); override;
+    function read(mode : TTestSettingsMode; name, defValue : String) : String; override;
+    procedure save(mode : TTestSettingsMode; name, value : String); override;
   end;
 
 implementation
@@ -44,14 +44,20 @@ begin
   inherited Destroy;
 end;
 
-function TTestIniSettingsProvider.read(name, defValue: String): String;
+function TTestIniSettingsProvider.read(mode : TTestSettingsMode; name, defValue: String): String;
 begin
-  result := FIni.ReadString('Tests', name, defValue);
+  case mode of
+    tsmConfig : result := FIni.ReadString('Config', name, defValue);
+    tsmStatus : result := FIni.ReadString('Status', name, defValue)
+  end;
 end;
 
-procedure TTestIniSettingsProvider.save(name, value: String);
+procedure TTestIniSettingsProvider.save(mode : TTestSettingsMode; name, value: String);
 begin
-  FIni.WriteString('Tests', name, value);
+  case mode of
+    tsmConfig : FIni.WriteString('Config', name, value);
+    tsmStatus : FIni.WriteString('Status', name, value)
+  end;
 end;
 
 end.

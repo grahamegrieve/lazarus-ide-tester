@@ -80,11 +80,17 @@ type
   TTestNodeList = class (TObjectList<TTestNode>)
   end;
 
+  TTestSettingsMode = (tsmConfig, tsmStatus);
+
+  { TTestSettingsProvider }
+
   TTestSettingsProvider = class abstract (TObject)
   private
   public
-    function read(name, defValue : String) : String; virtual; abstract;
-    procedure save(name, value : String); virtual; abstract;
+    function read(mode : TTestSettingsMode; name, defValue : String) : String; virtual; abstract;
+    procedure save(mode : TTestSettingsMode; name, value : String); virtual; abstract;
+
+    function parameters : String;
   end;
 
   { TTestError }
@@ -126,9 +132,11 @@ type
   private
     FListener: TTestListener;
     FOnReinitialise: TNotifyEvent;
-    FParameters: String;
+    FSettings : TTestSettingsProvider;
   public
     property listener : TTestListener read FListener write FListener;
+    property settings : TTestSettingsProvider read FSettings write FSettings;
+
     property OnReinitialise : TNotifyEvent read FOnReinitialise write FOnReinitialise;
 
     procedure loadAllTests(factory : TNodeFactory; manual : boolean); virtual; abstract; // get a list of tests
@@ -138,7 +146,7 @@ type
     function canDebug : boolean; virtual; abstract;
     function doesReload : boolean; virtual; abstract;
     function hasParameters : boolean; virtual;
-    property parameters : String read FParameters write FParameters;
+    function hasTestProject : boolean; virtual;
 
     function paramsForTest(test : TTestNode) : String; virtual; abstract;
     function paramsForCheckedTests(test : TTestNode; session : TTestSession) : String; virtual; abstract;
@@ -154,9 +162,21 @@ type
 
 implementation
 
+{ TTestSettingsProvider }
+
+function TTestSettingsProvider.parameters: String;
+begin
+  result := read(tsmConfig, 'parameters', '');
+end;
+
 { TTestEngine }
 
 function TTestEngine.hasParameters: boolean;
+begin
+  result := false;
+end;
+
+function TTestEngine.hasTestProject: boolean;
 begin
   result := false;
 end;

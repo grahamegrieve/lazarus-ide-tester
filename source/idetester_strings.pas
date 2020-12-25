@@ -29,6 +29,7 @@ resourcestring
   rs_IdeTester_Caption_Debug_Label_Load = 'Parameters to load tests';
   rs_IdeTester_Caption_Debug_Label_Exec = 'Executable File';
 
+  rs_IdeTester_Caption_Options_Label_Tester = 'Test Project (Blank = this project is the tester)';
   rs_IdeTester_Caption_Options_Label_Parameters = 'Additional Execution Parameters';
   rs_IdeTester_Caption_Options_Label_Timeout = 'Time to wait before killling tests (ms)';
 

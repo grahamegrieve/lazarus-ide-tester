@@ -5,7 +5,7 @@ unit idetester_ide;
 interface
 
 uses
-  Classes, SysUtils, Process,
+  Classes, SysUtils, Process, IniFiles,
   UITypes, Forms, Dialogs,
   ProjectIntf, LazIDEIntf, MacroIntf, CompOptsIntf,
   idetester_strings, idetester_base, idetester_external;
@@ -31,34 +31,20 @@ type
     function prepareToRunTests : TTestSession; override;
     function OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
     function executableName() : String; override;
+    function hasTestProject: boolean; override;
   end;
 
-  { TTestSettingsProjectProvider }
+  { TTestSettingsIDEProvider }
 
-  TTestSettingsProjectProvider = class (TTestSettingsProvider)
+  TTestSettingsIDEProvider = class (TTestSettingsProvider)
   private
+    function GetStatusFileName : String;
   public
-    function read(name, defValue : String) : String; override;
-    procedure save(name, value : String); override;
+    function read(mode : TTestSettingsMode; name, defValue : String) : String; override;
+    procedure save(mode : TTestSettingsMode; name, value : String); override;
   end;
 
 implementation
-
-{ TTestSettingsProjectProvider }
-
-function TTestSettingsProjectProvider.read(name, defValue: String): String;
-begin
-  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and LazarusIDE.ActiveProject.CustomSessionData.Contains('idetester.'+name) then
-    result := LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name]
-  else
-    result := defValue;
-end;
-
-procedure TTestSettingsProjectProvider.save(name, value: String);
-begin
-  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) then
-    LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value;
-end;
 
 function nameForType(p : TProjectExecutableType) : String;
 begin
@@ -68,8 +54,64 @@ begin
     petLibrary : result := 'Library';
     petPackage : result := 'Package';
     petUnit : result := 'Unit';
+  end;
+end;
+
+{ TTestSettingsIDEProvider }
+
+function TTestSettingsIDEProvider.GetStatusFileName: String;
+var
+  tp : String;
+begin
+  tp := read(tsmConfig, 'testproject', '');
+  if tp = '' then
+    tp := LazarusIDE.ActiveProject.ProjectInfoFile;
+  result := tp.Replace('.lpi', '') + '.testing.ini';
+end;
+
+function TTestSettingsIDEProvider.read(mode : TTestSettingsMode; name, defValue: String): String;
+var
+  ini : TIniFile;
+begin
+  // config settings are stored in the project file
+  // status settings are stored next to the target project
+  if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
+    exit(defValue);
+
+  result := defValue;
+  if mode = tsmConfig then
+  begin
+    if LazarusIDE.ActiveProject.CustomSessionData.Contains('idetester.'+name) then
+      result := LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name]
+  end
   else
-    result := '??';
+  begin
+    ini := TIniFile.create(GetStatusFileName);
+    try
+      result := ini.ReadString('Status', name, defValue)
+    finally
+      ini.free;
+    end;
+  end;
+end;
+
+procedure TTestSettingsIDEProvider.save(mode : TTestSettingsMode; name, value: String);
+var
+  ini : TIniFile;
+begin
+  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) then
+  begin
+    if mode = tsmConfig then
+      LazarusIDE.ActiveProject.CustomSessionData['idetester.'+name] := value
+    else
+    begin
+      ini := TIniFile.create(GetStatusFileName);
+      try
+        ini.WriteString('Status', name, value)
+      finally
+        ini.free;
+      end;
+    end;
   end;
 end;
 
@@ -118,6 +160,7 @@ begin
   result := mrOk;
 end;
 
+// only called when testProject = '' (debugging form)
 function TTestEngineIDE.executableName(): String;
 var
   en : String;
@@ -131,15 +174,23 @@ begin
   end;
 end;
 
+function TTestEngineIDE.hasTestProject: boolean;
+begin
+  Result := true;
+end;
+
 { TTestEngineIDESession }
 
 function TTestEngineIDESession.compile : boolean;
 var
   en : String;
 begin
+  // we've already compiled successfully
   if FExeName <> '' then
     exit(true);
 
+  // now we compile. If test project is '', we compile the current project.
+  // else we use lazbuild to build the specified test project. SaveAll first?
   result := false;
   if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
     ShowMessage(rs_IdeTester_Err_No_Project)
