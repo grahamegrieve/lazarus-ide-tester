@@ -29,7 +29,8 @@ type
     FOwnsData: boolean;
     FParent : TTestNode;
     FChildren : TTestNodeList;
-    FSourceUnitName: string;
+    FSourceUnit: String;
+    FSourceUnitError: string;
     FOutcome : TTestOutcome;
     FStartTime : UInt64;
     FNode : PVirtualNode;
@@ -66,7 +67,8 @@ type
 
     property ExceptionMessage: string read FExceptionMessage write FExceptionMessage;
     property ExceptionClassName: string read FExceptionClassName write FExceptionClassName;
-    property SourceUnitName: string read FSourceUnitName write FSourceUnitName;
+    property SourceUnit : String read FSourceUnit write FSourceUnit;
+    property SourceUnitError: string read FSourceUnitError write FSourceUnitError;
     property LineNumber: longint read FLineNumber write FLineNumber;
 
     function description : String;
@@ -276,8 +278,8 @@ end;
 function TTestNode.descriptionFull: String;
 begin
   result := description;
-  if SourceUnitName <> '' then
-    result := result + ' @ '+SourceUnitName+'#'+inttostr(LineNumber);
+  if SourceUnitError <> '' then
+    result := result + ' @ '+SourceUnitError+'#'+inttostr(LineNumber);
 end;
 
 function TTestNode.details(indent : String): String;
@@ -301,8 +303,8 @@ begin
       result := result + ')';
     end;
     if FExceptionMessage <> '' then
-      if FSourceUnitName <> '' then
-        result := result + '. '+FExceptionClassName+': '+FExceptionMessage+' (@'+FSourceUnitName+'#'+inttostr(FLineNumber)
+      if FSourceUnitError <> '' then
+        result := result + '. '+FExceptionClassName+': '+FExceptionMessage+' (@'+FSourceUnitError+'#'+inttostr(FLineNumber)
       else
         result := result + '. '+FExceptionClassName+': '+FExceptionMessage;
     result := result + #13#10;

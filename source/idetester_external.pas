@@ -54,6 +54,7 @@ type
     FClassName : String;
     FClssName: String;
     FId: String;
+    FSourceUnit: String;
     FTestName : String;
   public
     destructor Destroy; override;
@@ -61,6 +62,7 @@ type
     property id : String read FId write FId;
     property clssName : String read FClssName write FClassName;
     property testName : String read FTestname write FTestName;
+    property sourceUnit : String read FSourceUnit write FSourceUnit;
   end;
 
   { TTesterOutputProcessor }
@@ -321,6 +323,11 @@ begin
     te.id := id;
     te.clssName := l;
     te.testName := r;
+    if te.testName.contains('@@') then
+    begin
+      te.SourceUnit := te.testName.Substring(te.testName.IndexOf('@@')+2).trim;
+      te.testName := te.testName.Substring(0, te.testName.IndexOf('@@')).trim;
+    end;
   end;
 end;
 
@@ -457,6 +464,7 @@ begin
   result.ownsData := true;
   result.testName := test.TestName;
   result.testClassName := test.clssName;
+  result.SourceUnit := test.sourceUnit;
   result.checkState := tcsUnchecked;
   result.outcome := toNotRun;
 end;

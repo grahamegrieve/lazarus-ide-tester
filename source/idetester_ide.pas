@@ -192,21 +192,58 @@ begin
   Result := true;
 end;
 
+function firstLineMention(src : String; clss : String) : integer;
+var
+  ts : TStringList;
+  i : integer;
+  s : String;
+begin
+  result := 0;
+  ts := TStringList.create;
+  try
+    ts.LoadFromFile(src);
+    for i := 0 to ts.count - 1 do
+    begin
+      s := ts[i].Trim().Replace(' ', '');
+      if s.contains(clss+'=') then
+        exit(i+1);
+    end;
+    for i := 0 to ts.count - 1 do
+    begin
+      s := ts[i];
+      if s.contains(clss) then
+        exit(i+1);
+    end;
+  finally
+    ts.free;
+  end;
+end;
+
 procedure TTestEngineIDE.openSource(test: TTestNode);
 var
   pn : String;
   point : TPoint;
 begin
-  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and (test.SourceUnitName <> '') then
+  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and (test.SourceUnitError <> '') then
   begin
     pn := LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject'];
     if pn = '' then
       pn := LazarusIDE.ActiveProject.ProjectInfoFile;
-    pn := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(pn))+test.SourceUnitName);
+    pn := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(pn))+test.SourceUnitError);
     point.x := 0;
     point.y := test.LineNumber;
     LazarusIDE.DoOpenFileAndJumpToPos(pn, point, test.LineNumber, -1, -1, [ofRegularFile]);
-  end;
+  end
+  else if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and (test.SourceUnit <> '') and (test.SourceUnit <> 'fpcunit') then
+  begin
+    pn := LazarusIDE.FindUnitFile(test.sourceUnit);
+    if pn <> '' then
+    begin
+      point.x := 0;
+      point.y := firstLineMention(pn, test.testClassName);
+      LazarusIDE.DoOpenFileAndJumpToPos(pn, point, point.y, -1, -1, [ofRegularFile]);
+    end;
+  end
 end;
 
 { TTestEngineIDESession }

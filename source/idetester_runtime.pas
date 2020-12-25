@@ -216,7 +216,7 @@ begin
     else
     begin
       cpath := path+'.'+inttostr(i);
-      writeln('$#$#'+indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName);
+      writeln('$#$#'+indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName+' @@ '+suite.Test[i].UnitName);
       allTests.Add(suite.Test[i], TTestInfo.create(cpath));
       cindent := indent + ' ';
     end;

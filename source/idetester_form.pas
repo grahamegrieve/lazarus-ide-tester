@@ -895,7 +895,7 @@ begin
           begin
             ev.node.ExceptionMessage := ev.excMessage;
             ev.node.ExceptionClassName := ev.excClass;
-            ev.node.SourceUnitName := ev.SourceUnitName;
+            ev.node.SourceUnitError := ev.SourceUnitName;
             ev.node.LineNumber := ev.LineNumber;
             ev.node.outcome := toFail;
             Inc(FFailCount);
@@ -905,7 +905,7 @@ begin
           begin
             ev.node.ExceptionMessage := ev.excMessage;
             ev.node.ExceptionClassName := ev.excClass;
-            ev.node.SourceUnitName := ev.sourceUnitName;
+            ev.node.SourceUnitError := ev.sourceUnitName;
             ev.node.LineNumber := ev.LineNumber;
             ev.node.outcome := toError;
             Inc(FErrorCount);

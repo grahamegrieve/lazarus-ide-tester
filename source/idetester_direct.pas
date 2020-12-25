@@ -205,6 +205,7 @@ begin
     parent.Children.add(result);
   result.Data := test;
   result.testName := test.TestName;
+  result.SourceUnit := test.UnitName;
   result.testClassName := test.ClassName;
   result.checkState := tcsUnchecked;
   result.outcome := toNotRun;
