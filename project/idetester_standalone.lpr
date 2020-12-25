@@ -10,7 +10,7 @@ uses
   athreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, idetester_tests, idetester_form, idetester_runtime, idetester_external, idetester_example_testcase;
+  Forms, idetester_tests, idetester_form, idetester_runtime, idetester_external, idetester_example_testcase, idetester_ide {not used, but want to compile};
 
 {$R *.res}
 

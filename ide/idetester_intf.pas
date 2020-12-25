@@ -41,7 +41,7 @@ begin
 
   // ide tester specific stuff
   IdeTesterForm.caption := rs_IdeTester_Caption_View;
-  IdeTesterForm.store := TTestSettingsProjectProvider.create;
+  IdeTesterForm.store := TTestSettingsIDEProvider.create;
   engine := TTestEngineIDE.create;
   IdeTesterForm.engine := engine;
   LazarusIDE.AddHandlerOnProjectOpened(engine.openProject, false);

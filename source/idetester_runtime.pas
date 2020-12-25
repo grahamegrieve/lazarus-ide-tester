@@ -386,7 +386,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln('$#$#'+ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage);
+  writeln('$#$#'+ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage+' @@ '+AFailure.LocationInfo);
 end;
 
 procedure TTestEngineRunTimeListener.AddError(ATest: TTest; AError: TTestFailure);
@@ -394,7 +394,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln('$#$#'+ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage);
+  writeln('$#$#'+ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage+' @@ '+AError.LocationInfo);
 end;
 
 end.

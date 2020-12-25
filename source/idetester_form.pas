@@ -33,6 +33,8 @@ type
     event : TTestEventKind;
     excMessage : String;
     excClass : String;
+    sourceUnitName  : string;
+    lineNumber: longint;
   end;
   TTestEventQueue = class (TObjectList<TTestEvent>);
 
@@ -128,6 +130,10 @@ type
     procedure Timer1Timer(Sender: TObject);
     procedure tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
+    procedure tvTestsDblClick(Sender: TObject);
+    procedure tvTestsGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode;
+      Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle;
+      var HintText: String);
     procedure tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
     procedure tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
     procedure tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -168,13 +174,14 @@ type
     procedure checkStateOfChildren(node: TTestNode);
 
     // -- running tests ----
+    procedure doEngineStatus(sender : TObject; msg : String);
     procedure setDoExecute(node: TTestNode);
     procedure setDoExecuteParent(node: TTestNode);
     procedure setActionStatus(running : boolean);
     procedure StartTestRun;
     procedure DoExecuteTests(debug : boolean); // in alternative thread
     procedure FinishTestRun;
-    procedure queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
+    procedure queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName, srcUnit : String; line : integer);
     procedure killRunningTests;
     procedure EndTestSuite(ATest: TTestNode);
   public
@@ -200,43 +207,43 @@ end;
 procedure TTesterFormListener.StartTest(test: TTestNode);
 begin
   test.start;
-  FTester.queueEvent(test, tekStart, '', '');
+  FTester.queueEvent(test, tekStart, '', '', '', 0);
 end;
 
 procedure TTesterFormListener.EndTest(test: TTestNode);
 begin
   test.finish;
-  FTester.queueEvent(test, tekEnd, '', '');
+  FTester.queueEvent(test, tekEnd, '', '', '', 0);
 end;
 
 procedure TTesterFormListener.TestFailure(test: TTestNode; fail: TTestError);
 begin
-  FTester.queueEvent(test, tekFail, fail.ExceptionMessage, fail.ExceptionClass);
+  FTester.queueEvent(test, tekFail, fail.ExceptionMessage, fail.ExceptionClass, fail.SourceUnit, fail.LineNumber);
 end;
 
 procedure TTesterFormListener.TestError(test: TTestNode; error: TTestError);
 begin
-  FTester.queueEvent(test, tekError, error.ExceptionMessage, error.ExceptionClass);
+  FTester.queueEvent(test, tekError, error.ExceptionMessage, error.ExceptionClass, error.SourceUnit, error.LineNumber);
 end;
 
 procedure TTesterFormListener.TestHalt(test: TTestNode);
 begin
-  FTester.queueEvent(test, tekHalt, '', '');
+  FTester.queueEvent(test, tekHalt, '', '', '', 0);
 end;
 
 procedure TTesterFormListener.StartTestSuite(test: TTestNode);
 begin
-  FTester.queueEvent(test, tekStartSuite, '', '');
+  FTester.queueEvent(test, tekStartSuite, '', '', '', 0);
 end;
 
 procedure TTesterFormListener.EndTestSuite(test: TTestNode);
 begin
-  FTester.queueEvent(test, tekFinishSuite, '', '');
+  FTester.queueEvent(test, tekFinishSuite, '', '', '', 0);
 end;
 
 procedure TTesterFormListener.EndRun(test: TTestNode);
 begin
-  FTester.queueEvent(test, tekEndRun, '', '');
+  FTester.queueEvent(test, tekEndRun, '', '', '', 0);
 end;
 
 { TTestThread }
@@ -349,7 +356,7 @@ begin
   actTestRunFailed.Enabled := not running;
   actTestRunChecked.Enabled := not running;
   actTestRunSelected.Enabled := not running;
-  actTestDebugSelected.Enabled := not running and (store.read(tsmConfig, 'testproject', '') <> '');
+  actTestDebugSelected.Enabled := not running and (store <> nil) and (store.read(tsmConfig, 'testproject', '') <> '');
 end;
 
 // -- Tree Management ----------------------------------------------------------
@@ -366,6 +373,7 @@ procedure TIdeTesterForm.SetEngine(AValue: TTestEngine);
 begin
   FEngine := AValue;
   FEngine.OnReinitialise := doReinitialise;
+  FEngine.OnStatus := doEngineStatus;
   FEngine.settings := store;
 end;
 
@@ -537,6 +545,17 @@ begin
   UpdateTotals;
 end;
 
+procedure TIdeTesterForm.tvTestsDblClick(Sender: TObject);
+begin
+  if FSelectedNode <> nil then
+    engine.openSource(FSelectedNode);
+end;
+
+procedure TIdeTesterForm.tvTestsGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle; var HintText: String);
+begin
+  HintText := tn(node).descriptionFull;
+end;
+
 procedure TIdeTesterForm.tvTestsRemoveFromSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
 begin
   FSelectedNode := nil;
@@ -624,6 +643,12 @@ begin
     node.checkState := state;
     checkStateOfChildren(node.Parent);
   end;
+end;
+
+procedure TIdeTesterForm.doEngineStatus(sender: TObject; msg: String);
+begin
+  lblStatus.caption := msg;
+  lblStatus.Update;
 end;
 
 procedure TIdeTesterForm.actTestSelectAllExecute(Sender: TObject);
@@ -870,6 +895,8 @@ begin
           begin
             ev.node.ExceptionMessage := ev.excMessage;
             ev.node.ExceptionClassName := ev.excClass;
+            ev.node.SourceUnitName := ev.SourceUnitName;
+            ev.node.LineNumber := ev.LineNumber;
             ev.node.outcome := toFail;
             Inc(FFailCount);
             lblStatus.caption := '';
@@ -878,6 +905,8 @@ begin
           begin
             ev.node.ExceptionMessage := ev.excMessage;
             ev.node.ExceptionClassName := ev.excClass;
+            ev.node.SourceUnitName := ev.sourceUnitName;
+            ev.node.LineNumber := ev.LineNumber;
             ev.node.outcome := toError;
             Inc(FErrorCount);
             lblStatus.caption := '';
@@ -1049,11 +1078,16 @@ begin
     IDETesterSettings.editWaitTime.Text := store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY));
     IDETesterSettings.edtParameters.text := store.read(tsmConfig, 'parameters', '');
     IDETesterSettings.edtTester.text := store.read(tsmConfig, 'testproject', '');
+    IDETesterSettings.chkAutoSave.Checked :=  store.read(tsmConfig, 'autosave', '0') = '1';
     if IDETesterSettings.showModal = mrOk then
     begin
       store.save(tsmConfig, 'parameters', IDETesterSettings.edtParameters.text);
       store.save(tsmConfig, 'testproject', IDETesterSettings.edtTester.text);
       store.save(tsmConfig, 'killtime', IDETesterSettings.editWaitTime.Text);
+      if IDETesterSettings.chkAutoSave.Checked then
+        store.save(tsmConfig, 'autosave', '1')
+      else
+        store.save(tsmConfig, 'autosave', '0');
       UpdateActions;
     end;
 
@@ -1069,7 +1103,7 @@ begin
   engine.runTest(FSession, FRunningTest, debug);
 end;
 
-procedure TIdeTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName : String);
+procedure TIdeTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName, srcUnit : String; line : integer);
 var
   ev : TTestEvent;
 begin
@@ -1078,6 +1112,8 @@ begin
   ev.event := event;
   ev.excMessage := msg;
   ev.excClass := clssName;
+  ev.sourceUnitName := srcUnit;
+  ev.lineNumber := line;
   EnterCriticalSection(FLock);
   try
     FIncoming.add(ev);

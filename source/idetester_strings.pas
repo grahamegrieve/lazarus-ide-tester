@@ -32,6 +32,7 @@ resourcestring
   rs_IdeTester_Caption_Options_Label_Tester = 'Test Project (Blank = this project is the tester)';
   rs_IdeTester_Caption_Options_Label_Parameters = 'Additional Execution Parameters';
   rs_IdeTester_Caption_Options_Label_Timeout = 'Time to wait before killling tests (ms)';
+  rs_IdeTester_Caption_Options_Label_AutoSave = 'Autosave Source Files before running tests';
 
   rs_IdeTester_Err_No_Project = 'No Project loaded to test';
   rs_IdeTester_Err_Project_Type = 'Projects of type %s cannot be tested';
@@ -40,6 +41,12 @@ resourcestring
   rs_IdeTester_Err_No_Tests = 'No Tests Checked';
   rs_IdeTester_Err_No_FailedTests = 'No Failed Tests';
   rs_IdeTester_Err_No_Load_Tests = 'Unable to load tests. Check that the project runs the tests correctly (see %s, and on windows, check it is a console application)';
+  rs_IdeTester_Err_Project_Not_Found = 'Test Project %s not found';
+  rs_IdeTester_Err_LazBuild_Not_Found = 'LazBuild not found at %s';
+  rs_IdeTester_Err_LazBuild_Failed = 'Compiling test project failed - see %s for log';
+  rs_IdeTester_Err_LazBuild_Error = 'Error compiling test project : %s (line %s). See %s for full log';
+  rs_IdeTester_Err_LazBuild_No_ExeName = 'Compiling test project succeded, but unable to find executable name - see %s for log';
+  rs_IdeTester_Err_LazBuild_No_Exe = 'Compiling test project succeded, but unable to find executable file %s - see %s for log';
 
   rs_IdeTester_Msg_AllTests = 'All Tests';
   rs_IdeTester_Msg_Running_Test = 'Running Test ';

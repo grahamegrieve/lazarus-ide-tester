@@ -326,7 +326,8 @@ end;
 
 procedure TTestEngineExternal.processRun(line: String);
 var
-  l, r, id : String;
+  l, r, id, src : String;
+  ln : integer;
   test : TTestNode;
   err : TTestError;
 begin
@@ -357,6 +358,13 @@ begin
     try
       err.ExceptionClass := l;
       err.ExceptionMessage := r;
+      if err.ExceptionMessage.contains('@@') then
+      begin
+        readLocation(err.ExceptionMessage.Substring(err.ExceptionMessage.IndexOf('@@')+2).trim, src, ln);
+        err.SourceUnit := src;
+        err.LineNumber := ln;
+        err.ExceptionMessage := err.ExceptionMessage.Substring(0, err.ExceptionMessage.IndexOf('@@')).trim;
+      end;
       listener.TestFailure(test, err);
     finally
       err.free;
@@ -369,6 +377,13 @@ begin
     try
       err.ExceptionClass := l;
       err.ExceptionMessage := r;
+      if err.ExceptionMessage.contains('@@') then
+      begin
+        readLocation(err.ExceptionMessage.Substring(err.ExceptionMessage.IndexOf('@@')+2).trim, src, ln);
+        err.SourceUnit := src;
+        err.LineNumber := ln;
+        err.ExceptionMessage := err.ExceptionMessage.Substring(0, err.ExceptionMessage.IndexOf('@@')).trim;
+      end;
       listener.TestError(test, err);
     finally
       err.free;

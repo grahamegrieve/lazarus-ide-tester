@@ -133,6 +133,7 @@ object IDETesterSettings: TIDETesterSettings
       Top = 28
       Width = 384
       Anchors = [akTop, akLeft, akRight]
+      OnChange = edtTesterChange
       TabOrder = 0
       Text = 'edtParameters'
     end
@@ -145,7 +146,7 @@ object IDETesterSettings: TIDETesterSettings
       OnClick = Button1Click
       TabOrder = 1
     end
-    object CheckBox1: TCheckBox
+    object chkAutoSave: TCheckBox
       Left = 10
       Height = 19
       Top = 62

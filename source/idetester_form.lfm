@@ -122,16 +122,21 @@ object IdeTesterForm: TIdeTesterForm
     Header.AutoSizeIndex = 0
     Header.Columns = <>
     Header.MainColumn = -1
+    HintMode = hmHint
     Images = ilOutcomes
     ParentFont = False
+    ParentShowHint = False
     PopupMenu = pmTests
+    ShowHint = True
     TabOrder = 2
     TreeOptions.MiscOptions = [toAcceptOLEDrop, toCheckSupport, toFullRepaintOnResize, toInitOnSave, toToggleOnDblClick, toWheelPanning]
     TreeOptions.SelectionOptions = [toFullRowSelect, toRightClickSelect]
     OnAddToSelection = tvTestsAddToSelection
     OnChecked = tvTestsChecked
+    OnDblClick = tvTestsDblClick
     OnGetText = tvTestsGetText
     OnGetImageIndex = tvTestsGetImageIndex
+    OnGetHint = tvTestsGetHint
     OnRemoveFromSelection = tvTestsRemoveFromSelection
   end
   object Panel2: TPanel

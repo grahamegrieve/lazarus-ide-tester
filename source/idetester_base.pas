@@ -70,6 +70,7 @@ type
     property LineNumber: longint read FLineNumber write FLineNumber;
 
     function description : String;
+    function descriptionFull : String;
     function details(indent : String) : String;
     procedure start;
     procedure finish;
@@ -99,9 +100,13 @@ type
   private
     FExceptionClass: String;
     FExceptionMessage: String;
+    FLineNumber: Integer;
+    FSourceUnit: String;
   public
     property ExceptionClass : String read FExceptionClass write FExceptionClass;
     property ExceptionMessage : String read FExceptionMessage write FExceptionMessage;
+    property SourceUnit : String read FSourceUnit write FSourceUnit;
+    property LineNumber : Integer read FLineNumber write FLineNumber;
   end;
 
   TTestListener = class abstract (TObject)
@@ -125,6 +130,7 @@ type
   end;
 
   TNodeFactory = function (parent : TTestNode) : TTestNode of object;
+  TLogEvent = procedure (sender : TObject; msg : String) of object;
 
   { TTestEngine }
 
@@ -132,12 +138,16 @@ type
   private
     FListener: TTestListener;
     FOnReinitialise: TNotifyEvent;
+    FOnStatus: TLogEvent;
     FSettings : TTestSettingsProvider;
+  protected
+    procedure setStatus(s : String);
   public
     property listener : TTestListener read FListener write FListener;
     property settings : TTestSettingsProvider read FSettings write FSettings;
 
     property OnReinitialise : TNotifyEvent read FOnReinitialise write FOnReinitialise;
+    property OnStatus: TLogEvent read FOnStatus write FOnStatus;
 
     procedure loadAllTests(factory : TNodeFactory; manual : boolean); virtual; abstract; // get a list of tests
     function threadMode : TTestEngineThreadMode; virtual; abstract;
@@ -158,9 +168,22 @@ type
     procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
     procedure terminateTests(session: TTestSession); virtual; abstract; // terminate the tests without waiting for clean up. called from a different thread to runTest, which will still be in progress
     procedure finishTestRun(session : TTestSession); virtual; abstract; // clean up after a test run (must free session)
+
+    procedure openSource(test : TTestNode); virtual;
   end;
 
+procedure readLocation(loc : String; var srcUnit : String; var line : integer);
+
 implementation
+
+procedure readLocation(loc : String; var srcUnit : String; var line : integer);
+var
+  p : TStringArray;
+begin
+  p := loc.split([' ']);
+  srcUnit := p[length(p)-1];
+  line := StrToIntDef(p[length(p)-3], 0);
+end;
 
 { TTestSettingsProvider }
 
@@ -171,6 +194,11 @@ end;
 
 { TTestEngine }
 
+procedure TTestEngine.setStatus(s: String);
+begin
+  FOnStatus(self, s);
+end;
+
 function TTestEngine.hasParameters: boolean;
 begin
   result := false;
@@ -179,6 +207,11 @@ end;
 function TTestEngine.hasTestProject: boolean;
 begin
   result := false;
+end;
+
+procedure TTestEngine.openSource(test: TTestNode);
+begin
+  // nothing
 end;
 
 { TTestNode }
@@ -238,6 +271,13 @@ begin
   end;
   if ExceptionMessage <> '' then
     result := result +': '+ExceptionMessage;
+end;
+
+function TTestNode.descriptionFull: String;
+begin
+  result := description;
+  if SourceUnitName <> '' then
+    result := result + ' @ '+SourceUnitName+'#'+inttostr(LineNumber);
 end;
 
 function TTestNode.details(indent : String): String;

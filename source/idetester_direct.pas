@@ -103,10 +103,16 @@ begin
 end;
 
 function TTestEngineDirectListener.makeError(err : TTestFailure) : TTestError;
+var
+  src : String;
+  line : integer;
 begin
   result := TTestError.create;
   result.ExceptionClass := err.ExceptionClass.ClassName;
   result.ExceptionMessage := err.ExceptionMessage;
+  readLocation(err.LocationInfo, src, line);
+  result.SourceUnit := src;
+  result.LineNumber := line;
 end;
 
 procedure TTestEngineDirectListener.StartTest(ATest: TTest);
