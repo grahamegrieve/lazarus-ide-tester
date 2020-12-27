@@ -146,7 +146,7 @@ object IDETesterSettings: TIDETesterSettings
   }
   OnCreate = FormCreate
   OnShow = FormShow
-  Position = poOwnerFormCenter
+  Position = poMainFormCenter
   LCLVersion = '2.1.0.0'
   object pnlBottom: TPanel
     Left = 0
