@@ -179,8 +179,14 @@ var
   p : TStringArray;
 begin
   p := loc.split([' ']);
-  srcUnit := p[length(p)-1];
-  line := StrToIntDef(p[length(p)-3], 0);
+  srcUnit := '';
+  line := 0;
+  if (length(p) > 0) then
+  begin
+    srcUnit := p[length(p)-1];
+    if (length(p) > 2) then
+      line := StrToIntDef(p[length(p)-3], 0);
+  end;
 end;
 
 { TTestSettingsProvider }
