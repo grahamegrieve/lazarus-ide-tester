@@ -396,6 +396,27 @@ begin
     result := compileCurrentProject;
 end;
 
+function lazBuildPath : String;
+{$IFDEF DARWIN}
+var
+  i : integer;
+{$ENDIF}
+begin
+  result := 'Unsupported platform';
+  {$IFDEF MSWINDOWS}
+  result := IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0)))+'lazbuild.exe';
+  {$ENDIF}
+  {$IFDEF LINUX}
+  result := IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0)))+'lazbuild';
+  {$ENDIF}
+  {$IFDEF DARWIN}
+  result := ExtractFileDir(ParamStr(0));
+  i := result.IndexOf('lazarus.app');
+  result := result.Substring(0, i-1);
+  result := IncludeTrailingPathDelimiter(result)+'lazbuild';
+  {$ENDIF}
+end;
+
 function TTestEngineIDESession.compileProject(lpi : String) : boolean;
 var
   lb, tfn, s, err, line, fn : String;
@@ -408,7 +429,7 @@ begin
     if LazarusIDE.DoSaveAll([sfCanAbort]) <> mrOK then
       exit(false);
 
-  lb := IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0)))+{$IFDEF MSWINDOWS}'lazbuild.exe'{$ELSE}'lazbuild'{$ENDIF};
+  lb := lazBuildPath;
   if not FileExists(lpi) then
     ShowMessage(Format(rs_IdeTester_Err_Project_Not_Found, [lpi]))
   else if not FileExists(lb) then
