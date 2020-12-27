@@ -26,8 +26,6 @@ Issue report and PRs to https://github.com/grahamegrieve/lazarus-ide-tester
 
 Things still to do:
 
-* debug directly (needs changes to the debugger interface)
-* double click on the test to open the test in source 
 * add additional views (e.g. only show non-passing tests, flatten heirarchy)
 
 
@@ -49,10 +47,10 @@ The view has the following features
 
 * Reload: Compile the current project, and load all tests from it
 * Run Selected Test(s) - run the currently selected test, and any children
-* Debug Selected Test(s) - debug the currently selected test. Note: this is not working right now
-* Run Failed Tests - run all tests currently in failed status (including error) 
-* Stop Test Run - Stop the current test run 
 * Run Checked Tests - Run the set of tests that are checked
+* Stop Test Run - Stop the current test run 
+* Run Failed Tests - run all tests currently in failed status (including error) 
+* Debug Selected Test(s) - debug the currently selected test. Note: this is not working right now
 * Clear outcomes - forgot all the remembered outcomes
 * Copy - copy the test outcome details to the clipboard
 * Configure - Set configuration options (see below)
@@ -92,7 +90,6 @@ Summary:
 
 * Bring up the Test View in the IDE 
 * Create a new project, or use an existing project 
-* Windows: Make sure the project is a console applcation (Project..Options.. Config & Target.. Win32 GUI is **not** checked)
 * Add the idetester package as a dependency. 
 * in the dpr, add idetester_runtime to the units list, and make the main clause of the project:
 
@@ -106,6 +103,7 @@ Summary:
         RunIDETests
       end.                                      
 
+* note that if the application is a console app (windows), then you can call RunIDETestsCmdLine instead
 * Press "load tests" in the test view, and then run your tests 
 
 Note that you can make running the IDE tests to be one of the options for running your program:

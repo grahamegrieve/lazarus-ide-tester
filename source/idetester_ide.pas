@@ -7,37 +7,48 @@ interface
 uses
   Classes, SysUtils, Process, IniFiles,
   UITypes, Forms, Dialogs,
-  ProjectIntf, LazIDEIntf, MacroIntf, CompOptsIntf,
-  idetester_strings, idetester_base, idetester_external;
+  ProjectIntf, LazIDEIntf, MacroIntf, CompOptsIntf, IDEIntf,
+  idetester_strings, idetester_runtime, idetester_base, idetester_external;
+
+const
+  EOL = {$IFDEF MSWINDOWS} #13#10 {$ELSE} #10 {$ENDIF};
 
 type
   { TTestEngineIDESession }
 
   TTestEngineIDESession = class (TTestEngineExternalSession)
   private
+    FDebugging: boolean;
     FExeName : String;
     FOutput : TStringList;
     function isErrorLine(s : string; var fn, line, err : String) : boolean;
-    procedure processLine(line : String; var stop : boolean);
+    procedure processLine(line : String);
     function compileCurrentProject: boolean;
     function compileProject(lpi: String): boolean;
   public
     function compile : boolean;
     property exeName : String read FExeName write FExeName;
+    property debugging : boolean read FDebugging write FDebugging;
   end;
 
   { TTestEngineIDE }
 
   TTestEngineIDE = class (TTestEngineExternal)
+  private
+    FDebuggingSession : TTestEngineIDESession;
   protected
-    function runProgram(session : TTestEngineExternalSession; params : TStringList; debug : boolean) : TProcess; override;
+    function runProgram(session : TTestEngineExternalSession; params : TStringList) : TProcess; override;
     function autoLoad : boolean; override;
+    function makeSession : TTestEngineExternalSession; override;
+    procedure FinishTests; override;
   public
     function prepareToRunTests : TTestSession; override;
     function OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
-    function executableName() : String; override;
+    procedure endRun(Sender: TObject);
     function hasTestProject: boolean; override;
     procedure openSource(test : TTestNode); override;
+    function canDebug : boolean; override;
+    function setUpDebug(session : TTestSession; node : TTestNode) : boolean; override;
   end;
 
   { TTestSettingsIDEProvider }
@@ -61,6 +72,67 @@ begin
     petPackage : result := 'Package';
     petUnit : result := 'Unit';
   end;
+end;
+
+type
+  { TConsoleOutputProcessor }
+
+  TConsolerOutputProcessLineEvent = procedure (line : String) of object;
+
+  TConsoleOutputProcessor = class (TObject)
+  private
+    FProcess : TProcess;
+    FEvent : TConsolerOutputProcessLineEvent;
+    FCarry : String;
+    procedure processOutput(text : String);
+  public
+    constructor Create(process : TProcess; event : TConsolerOutputProcessLineEvent);
+
+    procedure Process;
+    property Event : TConsolerOutputProcessLineEvent read FEvent write FEvent;
+  end;
+
+procedure TConsoleOutputProcessor.processOutput(text: String);
+var
+  curr, s : String;
+begin
+  curr := FCarry + text;
+  while curr.contains(EOL) do
+  begin
+    StringSplit(curr, EOL, s, curr);
+    event(s);
+  end;
+  FCarry := curr;
+end;
+
+constructor TConsoleOutputProcessor.Create(process: TProcess; event : TConsolerOutputProcessLineEvent);
+begin
+  inherited Create;
+  FEvent := event;
+  FProcess := process;
+end;
+
+procedure TConsoleOutputProcessor.Process;
+var
+  BytesRead, total : longint;
+  Buffer           : TBytes;
+  start : UInt64;
+begin
+  start := GetTickCount64;
+  total := 0;
+  repeat
+    SetLength(Buffer, BUF_SIZE);
+    if FProcess.Output.NumBytesAvailable > 0 then
+    begin
+      BytesRead := FProcess.Output.Read(Buffer, BUF_SIZE);
+      total := total + BytesRead;
+      processOutput(TEncoding.UTF8.GetAnsiString(Buffer, 0, BytesRead));
+    end;
+    if (total = 0) and (GetTickCount64 - start > CONSOLE_TIMEOUT) then
+      exit;
+  until not FProcess.Active;
+  if FProcess.Active then
+    FProcess.Terminate(1);
 end;
 
 { TTestSettingsIDEProvider }
@@ -123,16 +195,20 @@ end;
 
 { TTestEngineIDE }
 
-function TTestEngineIDE.runProgram(session : TTestEngineExternalSession; params: TStringList; debug : boolean): TProcess;
+function TTestEngineIDE.runProgram(session : TTestEngineExternalSession; params: TStringList): TProcess;
 var
   sess : TTestEngineIDESession;
   ok : boolean;
 begin
-  if session = nil then
-    sess := TTestEngineIDESession.create
+  sess := session as TTestEngineIDESession;
+  if sess.debugging then
+  begin
+    // we already started the debugging session; we're going to create a fake process so we can terminate it.
+    result := TProcess.create(nil);
+    result.active := true;
+  end
   else
-    sess := session as TTestEngineIDESession;
-  try
+  begin
     if sess.FExeName = '' then
     begin
       setStatus('Compiling '+LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']);
@@ -145,17 +221,24 @@ begin
     result.CurrentDirectory := ExtractFileDir(sess.FExeName);
     result.Parameters := params;
     result.ShowWindow := swoHIDE;
-    result.Options := [poUsePipes];
+    result.Options := [];
     result.Execute;
-  finally
-    if session = nil then
-      sess.Free;
   end;
 end;
 
 function TTestEngineIDE.autoLoad: boolean;
 begin
   Result := false;
+end;
+
+function TTestEngineIDE.makeSession: TTestEngineExternalSession;
+begin
+  Result := TTestEngineIDESession.create;
+end;
+
+procedure TTestEngineIDE.FinishTests;
+begin
+  FDebuggingSession := nil;
 end;
 
 function TTestEngineIDE.prepareToRunTests: TTestSession;
@@ -173,18 +256,10 @@ begin
   result := mrOk;
 end;
 
-// only called when testProject = '' (debugging form)
-function TTestEngineIDE.executableName(): String;
-var
-  en : String;
+procedure TTestEngineIDE.endRun(Sender: TObject);
 begin
-  result := '';
-  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) then
-  begin
-    en := '$(TargetFile)';
-    IDEMacros.SubstituteMacros(en);
-    result := en;
-  end;
+  if (FDebuggingSession <> nil) and (FDebuggingSession.Process <> nil) then
+    FDebuggingSession.Process.active := false;
 end;
 
 function TTestEngineIDE.hasTestProject: boolean;
@@ -192,7 +267,7 @@ begin
   Result := true;
 end;
 
-function firstLineMention(src : String; clss : String) : integer;
+function firstLineMention(src : String; clss, test : String) : integer;
 var
   ts : TStringList;
   i : integer;
@@ -202,6 +277,12 @@ begin
   ts := TStringList.create;
   try
     ts.LoadFromFile(src);
+    for i := 0 to ts.count - 1 do
+    begin
+      s := ts[i].Trim().Replace(' ', '');
+      if s.contains(clss+'.'+test) then
+        exit(i+1);
+    end;
     for i := 0 to ts.count - 1 do
     begin
       s := ts[i].Trim().Replace(' ', '');
@@ -240,10 +321,60 @@ begin
     if pn <> '' then
     begin
       point.x := 0;
-      point.y := firstLineMention(pn, test.testClassName);
+      point.y := firstLineMention(pn, test.testClassName, test.testName);
       LazarusIDE.DoOpenFileAndJumpToPos(pn, point, point.y, -1, -1, [ofRegularFile]);
     end;
   end
+end;
+
+function TTestEngineIDE.canDebug: boolean;
+begin
+  result := true;
+end;
+
+function TTestEngineIDE.setUpDebug(session: TTestSession; node: TTestNode) : boolean;
+var
+  params, mode : String;
+  pm : TAbstractRunParamsOptionsMode;
+begin
+  result := false;
+  if (LazarusIDE = nil) or (LazarusIDE.ActiveProject = nil) then
+    ShowMessage(rs_IdeTester_Err_No_Project)
+  else
+  begin
+    // 1. determine the correct parameters
+    params := '-'+FPC_MAGIC_COMMAND+' -server '+FIPCServer.id+' -run '+(node.Data as TTestNodeId).id;
+    if settings.parameters <> '' then
+      params := params + ' '+settings.parameters;
+
+    //  2. set the parameters in the run mode 'test'
+    pm := LazarusIDE.ActiveProject.RunParameters.Find('Test');
+    if pm = nil then
+      pm := LazarusIDE.ActiveProject.RunParameters.Add('Test');
+    pm.HostApplicationFilename := '';
+    pm.CmdLineParams := params;
+    pm.UseLaunchingApplication := false;
+    pm.LaunchingApplicationPathPlusParams := '';
+    pm.WorkingDirectory := ExtractFileDir((session as TTestEngineIDESession).FExeName);
+    pm.UseDisplay := false;
+    pm.Display := '';
+    pm.IncludeSystemVariables := true;
+
+    //  3. set the mode 'test' as active
+    LazarusIDE.ActiveProject.RunParameters.ActiveModeName := 'Test';
+
+    //  4. ask the IDE to debug
+    if LazarusIDE.DoRunProject = mrOK then
+    begin
+      result := true;
+      FDebuggingSession := (session as TTestEngineIDESession);
+      FDebuggingSession.debugging := true; // ok, all good. Now, remember that we're debugging..
+    end;
+
+    // 5. restore the mode
+    LazarusIDE.ActiveProject.RunParameters.ActiveModeName := mode;
+
+  end;
 end;
 
 { TTestEngineIDESession }
@@ -270,7 +401,7 @@ var
   lb, tfn, s, err, line, fn : String;
   params : TStringList;
   pp : TProcess;
-  p : TTesterOutputProcessor;
+  p : TConsoleOutputProcessor;
   point : TPoint;
 begin
   if LazarusIDE.ActiveProject.CustomSessionData['idetester.autosave'] = '1' then
@@ -297,7 +428,7 @@ begin
           pp.ShowWindow := swoHIDE;
           pp.Options := [poUsePipes];
           pp.Execute;
-          p := TTesterOutputProcessor.create(pp, processLine);
+          p := TConsoleOutputProcessor.create(pp, processLine);
           try
             p.process;
           finally
@@ -369,10 +500,9 @@ begin
   end;
 end;
 
-procedure TTestEngineIDESession.processLine(line: String; var stop: boolean);
+procedure TTestEngineIDESession.processLine(line: String);
 begin
   FOutput.add(line);
-  stop := false;
 end;
 
 function TTestEngineIDESession.compileCurrentProject : boolean;

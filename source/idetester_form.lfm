@@ -24,7 +24,7 @@ object IdeTesterForm: TIdeTesterForm
     ShowHint = True
     TabOrder = 0
     object ToolButton1: TToolButton
-      Left = 78
+      Left = 55
       Top = 2
       Action = actTestRunChecked
     end
@@ -34,12 +34,12 @@ object IdeTesterForm: TIdeTesterForm
       Action = actTestRunSelected
     end
     object ToolButton3: TToolButton
-      Left = 55
+      Left = 132
       Top = 2
       Action = actTestRunFailed
     end
     object ToolButton4: TToolButton
-      Left = 101
+      Left = 78
       Top = 2
       Action = actTestStop
     end
@@ -51,17 +51,17 @@ object IdeTesterForm: TIdeTesterForm
       Style = tbsSeparator
     end
     object ToolButton6: TToolButton
-      Left = 155
+      Left = 186
       Top = 2
       Action = actTestCopy
     end
     object ToolButton7: TToolButton
-      Left = 132
+      Left = 155
       Top = 2
       Action = actTestReset
     end
     object ToolButton8: TToolButton
-      Left = 124
+      Left = 101
       Height = 22
       Top = 2
       Caption = 'ToolButton8'
@@ -85,7 +85,7 @@ object IdeTesterForm: TIdeTesterForm
       Action = actTestConfigure
     end
     object tbBtnDebug: TToolButton
-      Left = 186
+      Left = 109
       Top = 2
       Action = actTestDebugSelected
     end

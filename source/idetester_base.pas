@@ -160,25 +160,21 @@ type
     function hasParameters : boolean; virtual;
     function hasTestProject : boolean; virtual;
 
-    function paramsForTest(test : TTestNode) : String; virtual; abstract;
-    function paramsForCheckedTests(test : TTestNode; session : TTestSession) : String; virtual; abstract;
-    function paramsForLoad() : String; virtual; abstract;
-    function executableName() : String; virtual; abstract;
-
     function prepareToRunTests : TTestSession; virtual; abstract; // get ready to run tests - do whatever is requred (e.g. compile in the ide)
+    function setUpDebug(session : TTestSession; node : TTestNode) : boolean; virtual;
 
-    procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); virtual; abstract; // run the named test, and any sub tests that are checked. All tests is provided because test engines may need to access the entire list of tests
+    procedure runTest(session : TTestSession; node : TTestNode); virtual; abstract; // run the named test, and any sub tests that are checked.
     procedure terminateTests(session: TTestSession); virtual; abstract; // terminate the tests without waiting for clean up. called from a different thread to runTest, which will still be in progress
     procedure finishTestRun(session : TTestSession); virtual; abstract; // clean up after a test run (must free session)
 
     procedure openSource(test : TTestNode); virtual;
   end;
 
-procedure readLocation(loc : String; var srcUnit : String; var line : integer);
+procedure readLocation(loc : String; out srcUnit : String; out line : integer);
 
 implementation
 
-procedure readLocation(loc : String; var srcUnit : String; var line : integer);
+procedure readLocation(loc : String; out srcUnit : String; out line : integer);
 var
   p : TStringArray;
 begin
@@ -207,6 +203,11 @@ begin
 end;
 
 function TTestEngine.hasTestProject: boolean;
+begin
+  result := false;
+end;
+
+function TTestEngine.setUpDebug(session: TTestSession; node: TTestNode) : boolean;
 begin
   result := false;
 end;

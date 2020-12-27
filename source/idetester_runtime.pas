@@ -110,15 +110,28 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections,
+  simpleipc,
   FPCUnit, TestRegistry, TestDecorator;
 
 const
   FPC_MAGIC_COMMAND = 'fpc4169C1B6-1D5C-4E4D-A790-8458C64CDA57';
 
 procedure RunIDETests;
+procedure RunIDETestsCmdLine; // this handles errors, but you can only call it if the program has a console
 function IsRunningIDETests: boolean;
 
 type
+  { TTestOutputWriter }
+
+  TTestOutputWriter = class
+  private
+    client : TSimpleIPCClient;
+  public
+    constructor Create(serverId : String);
+    destructor Destroy; override;
+    procedure write(msg : String);
+  end;
+
 
   { TTestInfo }
 
@@ -137,8 +150,9 @@ type
   TTestEngineRunTimeListener = class (TinterfacedObject, ITestListener)
   private
     FTests : TDictionary<TTest, TTestInfo>;
+    FWriter : TTestOutputWriter;
   public
-    constructor Create(tests : TDictionary<TTest, TTestInfo>);
+    constructor Create(tests : TDictionary<TTest, TTestInfo>; writer : TTestOutputWriter);
 
     procedure StartTest(ATest: TTest);
     procedure EndTest(ATest: TTest);
@@ -200,7 +214,7 @@ begin
   result := hasCommandLineParam(FPC_MAGIC_COMMAND);
 end;
 
-procedure printTests(indent : String; path : String; suite : TTestSuite; allTests : TDictionary<TTest, TTestInfo>);
+procedure printTests(indent : String; path : String; suite : TTestSuite; allTests : TDictionary<TTest, TTestInfo>; writer : TTestOutputWriter; output : boolean);
 var
   i: integer;
   cindent : String;
@@ -216,28 +230,32 @@ begin
     else
     begin
       cpath := path+'.'+inttostr(i);
-      writeln('$#$#'+indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName+' @@ '+suite.Test[i].UnitName);
+      if output then
+        writer.write(indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName+' @@ '+suite.Test[i].UnitName);
       allTests.Add(suite.Test[i], TTestInfo.create(cpath));
       cindent := indent + ' ';
     end;
 
     if suite.Test[i] is TTestSuite then
-      printTests(cindent, cpath, TTestSuite(suite.Test[i]), allTests)
+      printTests(cindent, cpath, TTestSuite(suite.Test[i]), allTests, writer, output)
     else if TObject(suite.Test[i]).InheritsFrom(TTestDecorator) then
-      printTests(cindent, cpath, TTestSuite(TTestDecorator(suite.Test[i]).Test), allTests);
+      printTests(cindent, cpath, TTestSuite(TTestDecorator(suite.Test[i]).Test), allTests, writer, output);
   end;
 end;
 
-procedure listTests(allTests : TDictionary<TTest, TTestInfo>);
+procedure listTests(allTests : TDictionary<TTest, TTestInfo>; writer : TTestOutputWriter; output : boolean);
 var
   test : TTestSuite;
 begin
-  writeln('$#$#-- Test List ---');
+  if output then
+    writer.write('-- Test List ---');
   test := GetTestRegistry;
-  writeln('$#$#0 = RootTest: AllTests');
-  printTests(' ', '0', test, allTests);
+  if output then
+    writer.write('0 = RootTest: AllTests');
+  printTests(' ', '0', test, allTests, writer, output);
   allTests.Add(test, TTestInfo.create('0'));
-  writeln('$#$#-- End Test List ---');
+  if output then
+    writer.write('-- End Test List ---');
 end;
 
 function findTest(allTests : TDictionary<TTest, TTestInfo>; id : String) : TTest; overload;
@@ -251,7 +269,7 @@ begin
 end;
 
 
-function runTests(allTests : TDictionary<TTest, TTestInfo>; id : String; skiplist : TStringList) : integer;
+function runTests(allTests : TDictionary<TTest, TTestInfo>; id : String; skiplist : TStringList; writer : TTestOutputWriter) : integer;
 var
   test, st : TTest;
   listener : ITestListener;
@@ -261,12 +279,12 @@ begin
   test := findTest(allTests, id);
   if test = nil then
   begin
-    writeln('$#$#Unable to find test '+id);
+    writer.write('Unable to find test '+id);
     result := 1;
   end
   else
   begin
-    listener := TTestEngineRunTimeListener.create(allTests) as ITestListener;
+    listener := TTestEngineRunTimeListener.create(allTests, writer) as ITestListener;
     tr := TTestResult.create;
     try
       tr.AddListener(listener);
@@ -284,45 +302,103 @@ begin
   end;
 end;
 
+procedure RunIDETestsCmdLine;
+var
+  i : integer;
+begin
+  write(ParamStr(0));
+  for i := 1 to ParamCount do
+    write(' '+ParamStr(i));
+  writeln;
+  try
+    RunIDETests;
+  except
+    on e : Exception do
+    begin
+      writeln('Exception Running Tests: '+e.message);
+    end;
+  end;
+  if hasCommandLineParam('pause') then
+  begin
+    writeln('Done. Press enter to close');
+    readln;
+  end;
+  system.Exit;
+end;
+
 procedure RunIDETests;
 var
   allTests : TDictionary<TTest, TTestInfo>;
   skiplist : TStringList;
   fn : String;
+  writer : TTestOutputWriter;
 begin
   if not IsRunningIDETests then
   begin
-    Writeln('No IDE Tester Parameter found');
-    exitCode := 1;
+    raise Exception.create('No IDE Tester Parameter found');
   end
   else
   begin
-    allTests := TDictionary<TTest, TTestInfo>.create;
+    writer := TTestOutputWriter.create(getCommandLineParam('server'));
     try
-      ListTests(allTests);
-      if hasCommandLineParam('run') then
-      begin
-        skipList := TStringList.create;
-        try
-          if getCommandLineParam('skip', fn) then
-            skipList.LoadFromFile(fn);
-          exitCode := RunTests(allTests, getCommandLineParam('run'), skiplist)
-        finally
-          skiplist.free;
-        end;
-      end
-      else
-        exitCode := 1;
+      allTests := TDictionary<TTest, TTestInfo>.create;
+      try
+        ListTests(allTests, writer, not hasCommandLineParam('debug'));
+        if hasCommandLineParam('run') then
+        begin
+          skipList := TStringList.create;
+          try
+            fn := '';
+            if getCommandLineParam('skip', fn) then
+              skipList.LoadFromFile(fn);
+            exitCode := RunTests(allTests, getCommandLineParam('run'), skiplist, writer)
+          finally
+            skiplist.free;
+          end;
+        end
+        else
+          exitCode := 1;
+      finally
+        allTests.free;
+      end;
     finally
-      allTests.free;
-    end;
-    if hasCommandLineParam('pause') then
-    begin
-      writeln('press enter to close');
-      readln;
+      writer.Free;
     end;
   end;
-  system.Exit;
+end;
+
+{ TTestOutputWriter }
+
+constructor TTestOutputWriter.Create(serverId: String);
+begin
+  inherited Create;
+  if serverId <> '' then
+  begin
+    client := TSimpleIPCClient.create(nil);
+    client.ServerID := serverId;
+    client.Connect;
+  end;
+end;
+
+destructor TTestOutputWriter.Destroy;
+begin
+  if (client <> nil) then
+  begin
+    client.Disconnect;
+    client.free;
+  end;
+  inherited Destroy;
+end;
+
+procedure TTestOutputWriter.write(msg: String);
+begin
+  if client = nil then
+    writeln('$#$#'+msg)
+  else
+  begin
+    writeln('Send to IPC '+client.ServerID+':'+msg);
+    client.SendStringMessage(msg);
+  end;
 end;
 
 { TTestInfo }
@@ -335,10 +411,11 @@ end;
 
 { TTestEngineRunTimeListener }
 
-constructor TTestEngineRunTimeListener.Create(tests: TDictionary<TTest, TTestInfo>);
+constructor TTestEngineRunTimeListener.Create(tests: TDictionary<TTest, TTestInfo>; writer : TTestOutputWriter);
 begin
   inherited create;
   FTests := tests;
+  FWriter := writer;
 end;
 
 procedure TTestEngineRunTimeListener.StartTest(ATest: TTest);
@@ -346,7 +423,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln('$#$#'+ti.id+': start');
+  FWriter.write(ti.id+': start');
   ti.start := GetTickCount64;
 end;
 
@@ -355,7 +432,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln('$#$#'+ti.id+': end '+inttostr(GetTickCount64 - ti.start));
+  FWriter.write(ti.id+': end '+inttostr(GetTickCount64 - ti.start));
 end;
 
 procedure TTestEngineRunTimeListener.StartTestSuite(ATestSuite: TTestSuite);
@@ -365,7 +442,7 @@ begin
   if FTests.containsKey(ATestSuite) then
   begin
     ti := FTests[ATestSuite];
-    writeln('$#$#'+ti.id+': start');
+    FWriter.write(ti.id+': start');
     ti.start := GetTickCount64;
   end;
 end;
@@ -377,7 +454,7 @@ begin
   if FTests.containsKey(ATestSuite) then
   begin
     ti := FTests[ATestSuite];
-    writeln('$#$#'+ti.id+': end '+inttostr(GetTickCount64 - ti.start));
+    FWriter.write(ti.id+': end '+inttostr(GetTickCount64 - ti.start));
   end;
 end;
 
@@ -386,7 +463,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln('$#$#'+ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage+' @@ '+AFailure.LocationInfo);
+  FWriter.write(ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage+' @@ '+AFailure.LocationInfo);
 end;
 
 procedure TTestEngineRunTimeListener.AddError(ATest: TTest; AError: TTestFailure);
@@ -394,7 +471,7 @@ var
   ti : TTestInfo;
 begin
   ti := FTests[aTest];
-  writeln('$#$#'+ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage+' @@ '+AError.LocationInfo);
+  FWriter.write(ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage+' @@ '+AError.LocationInfo);
 end;
 
 end.

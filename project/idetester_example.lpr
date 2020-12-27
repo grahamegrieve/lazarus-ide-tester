@@ -15,7 +15,7 @@ uses
 
 begin
   if IsRunningIDETests then
-    RunIDETests
+    RunIDETestsCmdLine
   else
   begin
     Application.Scaled:=True;

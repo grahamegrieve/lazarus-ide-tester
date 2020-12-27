@@ -9,7 +9,7 @@ uses
   StdCtrls, ActnList, Menus, LCLIntf, laz.VirtualTrees, ClipBrd,
   Generics.Collections,
   idetester_base, idetester_strings, idetester_direct, idetester_ini,
-  idetester_options, idetester_debug_form;
+  idetester_options;
 
 const
   DEFAULT_KILL_TIME_DELAY = 5000;
@@ -45,11 +45,10 @@ type
   TTestThread = class (TThread)
   private
     FTester : TIdeTesterForm;
-    FDebug : boolean;
   protected
     procedure execute; override;
   public
-    constructor Create(tester : TIdeTesterForm; debug : boolean);
+    constructor Create(tester : TIdeTesterForm);
   end;
 
   { TTesterFormListener }
@@ -178,8 +177,8 @@ type
     procedure setDoExecute(node: TTestNode);
     procedure setDoExecuteParent(node: TTestNode);
     procedure setActionStatus(running : boolean);
-    procedure StartTestRun;
-    procedure DoExecuteTests(debug : boolean); // in alternative thread
+    procedure StartTestRun(debug : boolean);
+    procedure DoExecuteTests; // in alternative thread
     procedure FinishTestRun;
     procedure queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName, srcUnit : String; line : integer);
     procedure killRunningTests;
@@ -251,15 +250,14 @@ end;
 procedure TTestThread.execute;
 begin
   try
-    FTester.DoExecuteTests(FDebug);
+    FTester.DoExecuteTests();
   except
   end;
 end;
 
-constructor TTestThread.Create(tester: TIdeTesterForm; debug : boolean);
+constructor TTestThread.Create(tester: TIdeTesterForm);
 begin
   FTester := tester;
-  FDebug := debug;
   inherited Create(false);
 end;
 
@@ -694,8 +692,8 @@ begin
   if FTestsTotal > 0 then
   begin
     FRunningTest := FTestInfo[0];
-    StartTestRun;
-    FThread := TTestThread.create(self, false);
+    StartTestRun(false);
+    FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end
   else
@@ -719,8 +717,8 @@ begin
       if ti.execute and (not ti.hasChildren) then
         inc(FTestsTotal);
     FRunningTest := node;
-    StartTestRun;
-    FThread := TTestThread.create(self, false);
+    StartTestRun(false);
+    FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end;
 end;
@@ -749,8 +747,8 @@ begin
   if FTestsTotal > 0 then
   begin
     FRunningTest := FTestInfo[0];
-    StartTestRun;
-    FThread := TTestThread.create(self, false);
+    StartTestRun(false);
+    FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end
   else
@@ -965,7 +963,7 @@ begin
   ATest.finish;
 end;
 
-procedure TIdeTesterForm.StartTestRun;
+procedure TIdeTesterForm.StartTestRun(debug : boolean);
 var
   ti : TTestNode;
 begin
@@ -983,6 +981,9 @@ begin
   for ti in FTestInfo do
     if not ti.execute then
       FSession.skipTest(ti);
+  if debug then
+    if not engine.SetUpDebug(FSession, FRunningTest) then
+      abort;
   FStartTime := GetTickCount64;
   FEndTime := 0;
 end;
@@ -1032,40 +1033,11 @@ begin
       if ti.execute and (not ti.hasChildren) then
         inc(FTestsTotal);
     FRunningTest := node;
-  end;
 
-  // we don't support debugging yet, so we just allow users to copy parameters
-  IDETesterDebugForm := TIDETesterDebugForm.create(self);
-  try
-    if node <> nil then
-    begin
-      IDETesterDebugForm.edtParamsRunSelected.text := engine.paramsForTest(FRunningTest);
-      FSession := engine.prepareToRunTests;
-      try
-        for ti in FTestInfo do
-          if not ti.execute then
-            FSession.skipTest(ti);
-        IDETesterDebugForm.edtParamsChecked.text := engine.paramsForCheckedTests(FRunningTest, FSession);
-      finally
-        FreeAndNil(FSession);
-      end;
-    end
-    else
-    begin
-      IDETesterDebugForm.edtParamsChecked.text := '';
-      IDETesterDebugForm.edtParamsRunSelected.text := '';
-    end;
-
-    IDETesterDebugForm.edtParamsLoad.text := engine.paramsForLoad;
-    IDETesterDebugForm.edtExecutable.text := engine.executableName;
-    IDETesterDebugForm.ShowModal;
-  finally
-    FreeAndNil(IDETesterDebugForm);
+    StartTestRun(true);
+    FThread := TTestThread.create(self);
+    FThread.FreeOnTerminate := true;
   end;
-  FRunningTest := nil;
-    //StartTestRun;
-    //FThread := TTestThread.create(self, true);
-    //FThread.FreeOnTerminate := true;
 end;
 
 procedure TIdeTesterForm.actTestConfigureExecute(Sender: TObject);
@@ -1098,9 +1070,9 @@ end;
 
 // -- test thread  - no UI access ----------------------------------------------
 
-procedure TIdeTesterForm.DoExecuteTests(debug : boolean);
+procedure TIdeTesterForm.DoExecuteTests;
 begin
-  engine.runTest(FSession, FRunningTest, debug);
+  engine.runTest(FSession, FRunningTest);
 end;
 
 procedure TIdeTesterForm.queueEvent(test: TTestNode; event : TTestEventKind; msg, clssName, srcUnit : String; line : integer);

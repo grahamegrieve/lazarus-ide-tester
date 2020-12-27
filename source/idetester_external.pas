@@ -5,13 +5,13 @@ interface
 
 uses
   Classes, SysUtils, Process, Generics.Collections,
+  simpleipc,
   Forms, Dialogs,
   idetester_strings, idetester_base, idetester_runtime;
 
 const
   CONSOLE_TIMEOUT = 4000; // how long we wait for input to start
   BUF_SIZE = 2048; // Buffer size for reading the output in chunks
-  EOL = {$IFDEF MSWINDOWS} #13#10 {$ELSE} #10 {$ENDIF};
 
 type
   { TTestNodeId }
@@ -28,6 +28,22 @@ type
     property running : boolean read FRunning write FRunning;
   end;
 
+  { TTesterOutputListener }
+
+  TTesterOutputListenerEvent = procedure (line : String; var finished : boolean) of object;
+
+  TTesterOutputListener = class (TObject)
+  private
+    FEvent : TTesterOutputListenerEvent;
+    FServer : TSimpleIPCServer;
+  public
+    constructor Create(event : TTesterOutputListenerEvent);
+    destructor Destroy; override;
+
+    function id : String;
+    procedure listen(process: TProcess);
+  end;
+
   { TTestEngineExternalSession }
 
   TTestEngineExternalSession = class (TTestSession)
@@ -40,6 +56,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure skipTest(node : TTestNode); override;
+
     property Process : TProcess read FProcess write FProcess;
   end;
 
@@ -65,28 +82,9 @@ type
     property sourceUnit : String read FSourceUnit write FSourceUnit;
   end;
 
-  { TTesterOutputProcessor }
-
-  TTesterOutputProcessLineEvent = procedure (line : String; var stop : boolean) of object;
-
-  TTesterOutputProcessor = class (TObject)
-  private
-    FProcess : TProcess;
-    FEvent : TTesterOutputProcessLineEvent;
-    FCarry : String;
-    FFinished : boolean;
-    procedure processOutput(text : String);
-  public
-    constructor Create(process : TProcess; event : TTesterOutputProcessLineEvent);
-
-    procedure Process;
-    property Event : TTesterOutputProcessLineEvent read FEvent write FEvent;
-  end;
-
   TTestEngineExternalOutputMode = (teomStarting, teomListing, teomRunning, teomDone);
 
   { TTestEngineExternal }
-
 
   TTestEngineExternal = class abstract (TTestEngine)
   private
@@ -94,7 +92,6 @@ type
     FIndent : integer;
     FTests : TTesterTestEntry;
     FTestStack : TTesterTestEntryList;
-
     FRunningTest : TTestNode;
 
     procedure processLine(line : String; var finished : boolean);
@@ -110,22 +107,22 @@ type
     procedure markTestHalted(node : TTestNode);
     procedure addBaseParams(st : TStringList);
   protected
-    function runProgram(session : TTestEngineExternalSession; params : TStringList; debug : boolean) : TProcess; virtual; abstract;
+    FIPCServer : TTesterOutputListener;
+    function runProgram(session : TTestEngineExternalSession; params : TStringList) : TProcess; virtual; abstract;
+    function makeSession : TTestEngineExternalSession; virtual;
     function autoLoad : boolean; virtual;
+    procedure FinishTests; virtual;
   public
+    constructor Create;
+    destructor Destroy; override;
     procedure loadAllTests(factory : TNodeFactory; manual : boolean); override;
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
-    function canDebug : boolean; override;
     function hasParameters : boolean; override;
 
-    function paramsForTest(test : TTestNode) : String; override;
-    function paramsForCheckedTests(test : TTestNode; session : TTestSession) : String; override;
-    function paramsForLoad() : String; override;
-
     function prepareToRunTests : TTestSession; override;
-    procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); override;
+    procedure runTest(session : TTestSession; node : TTestNode); override;
     procedure terminateTests(session: TTestSession); override;
     procedure finishTestRun(session : TTestSession); override;
   end;
@@ -136,11 +133,13 @@ type
   private
     FExecutable : String;
   protected
-    function runProgram(session : TTestEngineExternalSession; params : TStringList; debug : boolean) : TProcess; override;
+    function runProgram(session : TTestEngineExternalSession; params : TStringList) : TProcess; override;
   public
     constructor Create(executable : String);
-    function executableName() : String; override;
+    function canDebug : boolean; override;
   end;
+
+Function StringSplit(Const sValue, sDelimiter : String; Var sLeft, sRight: String) : Boolean;
 
 implementation
 
@@ -175,49 +174,48 @@ begin
     inc(result);
 end;
 
-{ TTesterOutputProcessor }
+{ TTesterOutputListener }
 
-procedure TTesterOutputProcessor.processOutput(text: String);
-var
-  curr, s : String;
-begin
-  curr := FCarry + text;
-  while curr.contains(EOL) and not FFinished do
-  begin
-    StringSplit(curr, EOL, s, curr);
-    event(s, FFinished);
-  end;
-  FCarry := curr;
-end;
-
-constructor TTesterOutputProcessor.Create(process: TProcess; event : TTesterOutputProcessLineEvent);
+constructor TTesterOutputListener.Create(event : TTesterOutputListenerEvent);
 begin
   inherited Create;
   FEvent := event;
-  FProcess := process;
+  FServer := TSimpleIPCServer.create(nil);
+  FServer.Threaded := true;
+  FServer.Global := true;
+  FServer.ServerID := 'fpc-'+IntToStr(GetTickCount64);
+  FServer.Active := true;
 end;
 
-procedure TTesterOutputProcessor.Process;
-var
-  BytesRead, total : longint;
-  Buffer           : TBytes;
-  start : UInt64;
+destructor TTesterOutputListener.Destroy;
 begin
-  start := GetTickCount64;
-  total := 0;
-  repeat
-    SetLength(Buffer, BUF_SIZE);
-    if FProcess.Output.NumBytesAvailable > 0 then
+  FServer.active := false;
+  FServer.Free;
+  inherited Destroy;
+end;
+
+function TTesterOutputListener.id: String;
+begin
+  result := FServer.ServerID;
+end;
+
+procedure TTesterOutputListener.listen(process: TProcess);
+var
+  fin : boolean;
+begin
+  fin := false;
+  while process.Active and not fin do
+  begin
+    while FServer.PeekMessage(5, true) do
     begin
-      BytesRead := FProcess.Output.Read(Buffer, BUF_SIZE);
-      total := total + BytesRead;
-      processOutput(TEncoding.UTF8.GetString(Buffer, 0, BytesRead));
+      FEvent(FServer.StringMessage, fin);
+      if (fin) then
+      begin
+        break;
+      end;
     end;
-    if (total = 0) and (GetTickCount64 - start > CONSOLE_TIMEOUT) then
-      exit;
-  until FFinished or not FProcess.Active;
-  if FProcess.Active then
-    FProcess.Terminate(1);
+  end;
+  process.Terminate(1);
 end;
 
 { TTestEngineExternalSession }
@@ -272,16 +270,16 @@ end;
 
 procedure TTestEngineExternal.processLine(line: String; var finished : boolean);
 begin
-  if line.StartsWith('$#$#') then
-  begin
-    line := line.Substring(4);
+  //if line.StartsWith('$#$#') then
+  //begin
+    //line := line.Substring(4);
     case FOutputMode of
       teomStarting : if line = '-- Test List ---' then FOutputMode := teomListing;
       teomListing : ProcessEntry(line);
       teomRunning : ProcessRun(line);
       teomDone : finished := true;
     end;
-  end;
+  //end;
 end;
 
 procedure TTestEngineExternal.processEntry(line: String);
@@ -412,23 +410,25 @@ procedure TTestEngineExternal.loadAllTests(factory: TNodeFactory; manual : boole
 var
   params : TStringList;
   process : TProcess;
-  p : TTesterOutputProcessor;
+  session : TTestEngineExternalSession;
   node : TTestNode;
 begin
   if manual or autoLoad then
   begin
     clearTests;
-    params := TStringList.create;
+    session := makeSession;
     try
-      addBaseParams(params);
-      params.add('-'+FPC_MAGIC_COMMAND);
-      process := runProgram(nil, params, false);
+      params := TStringList.create;
       try
-        if process <> nil then
-        begin
-          p := TTesterOutputProcessor.create(process, processLine);
-          try
-            p.process;
+        addBaseParams(params);
+        params.add('-'+FPC_MAGIC_COMMAND);
+        params.add('-server');
+        params.add(FIPCServer.id);
+        process := runProgram(session, params);
+        try
+          if process <> nil then
+          begin
+            FIPCServer.listen(process);
             if FTests <> nil then
             begin
               node := registerTestNode(factory, nil, FTests);
@@ -436,15 +436,15 @@ begin
             end
             else
               ShowMessage(format(rs_IdeTester_Err_No_Load_Tests, [helpUrl]));
-          finally
-            p.free;
           end;
+        finally
+          process.free;
         end;
       finally
-        process.free;
+        params.free;
       end;
     finally
-      params.free;
+      session.Free;
     end;
   end;
 end;
@@ -539,9 +539,31 @@ begin
   end;
 end;
 
+function TTestEngineExternal.makeSession: TTestEngineExternalSession;
+begin
+  result := TTestEngineExternalSession.create;
+end;
+
 function TTestEngineExternal.autoLoad: boolean;
 begin
   result := true;
+end;
+
+procedure TTestEngineExternal.FinishTests;
+begin
+  // nothing
+end;
+
+constructor TTestEngineExternal.Create;
+begin
+  inherited create;
+  FIPCServer := TTesterOutputListener.create(processLine);
+end;
+
+destructor TTestEngineExternal.Destroy;
+begin
+  FIPCServer.Free;
+  inherited Destroy;
 end;
 
 function TTestEngineExternal.threadMode: TTestEngineThreadMode;
@@ -560,43 +582,9 @@ begin
 
 end;
 
-function TTestEngineExternal.canDebug: boolean;
-begin
-  result := true;
-end;
-
 function TTestEngineExternal.hasParameters: boolean;
 begin
   Result := true;
-end;
-
-function TTestEngineExternal.paramsForTest(test: TTestNode): String;
-begin
-  result := '-'+FPC_MAGIC_COMMAND+' -run '+(test.Data as TTestNodeId).id;
-  if settings.parameters <> '' then
-    result := result + ' '+settings.parameters;
-  result := result + ' -pause';
-end;
-
-function TTestEngineExternal.paramsForCheckedTests(test: TTestNode; session : TTestSession): String;
-var
-  sess : TTestEngineExternalSession;
-begin
-  result := '-'+FPC_MAGIC_COMMAND+' -run '+(test.Data as TTestNodeId).id;
-  sess := session as TTestEngineExternalSession;
-  if sess.FSkipList.count > 0 then
-    result := result +' -skip ' + sess.saveSkipList;
-  if settings.parameters <> '' then
-    result := result + ' '+settings.parameters;
-  result := result + ' -pause';
-end;
-
-function TTestEngineExternal.paramsForLoad(): String;
-begin
-  result := '-'+FPC_MAGIC_COMMAND;
-  if settings.parameters <> '' then
-    result := result + ' '+settings.parameters;
-  result := result + ' -pause';
 end;
 
 function TTestEngineExternal.prepareToRunTests: TTestSession;
@@ -604,12 +592,12 @@ begin
   result := TTestEngineExternalSession.create; // this will hold the external process
 end;
 
-procedure TTestEngineExternal.runTest(session: TTestSession; node: TTestNode; debug: boolean);
+procedure TTestEngineExternal.runTest(session: TTestSession; node: TTestNode);
 var
   sess : TTestEngineExternalSession;
   params : TStringList;
-  p : TTesterOutputProcessor;
 begin
+  sess := session as TTestEngineExternalSession;
   try
     clearTests;
     FRunningTest := node;
@@ -617,24 +605,19 @@ begin
     try
       addBaseParams(params);
       params.add('-'+FPC_MAGIC_COMMAND);
+      params.add('-server');
+      params.add(FIPCServer.id);
       params.add('-run');
       params.add((node.Data as TTestNodeId).id);
-      sess := session as TTestEngineExternalSession;
       if sess.FSkipList.count > 0 then
       begin
         params.add('-skip');
         params.add(sess.saveSkipList);
       end;
-      sess.Process := runProgram(sess, params, debug);
+      sess.Process := runProgram(sess, params);
       try
-        p := TTesterOutputProcessor.create(Sess.Process, processLine);
-        try
-          p.Process;
-        finally
-          p.free;
-        end;
-        // todo: check that the list is in sync?
-        // todo: clean up in case of termination
+        if sess.process <> nil then
+          FIPCServer.listen(sess.process);
       finally
         sess.Process.free;
         sess.Process := nil;
@@ -645,8 +628,9 @@ begin
     // any tests still running, mark them as halted.
     markTestHalted(node);
   finally
-    listener.EndRun(node);
+    self.listener.EndRun(node);
   end;
+  FinishTests;
 end;
 
 procedure TTestEngineExternal.terminateTests(session: TTestSession);
@@ -671,20 +655,20 @@ begin
   FExecutable := executable;
 end;
 
-function TTestEngineExternalCmdLine.executableName(): String;
-begin
-  result := FExecutable;
-end;
-
-function TTestEngineExternalCmdLine.runProgram(session : TTestEngineExternalSession; params: TStringList; debug : boolean): TProcess;
+function TTestEngineExternalCmdLine.runProgram(session : TTestEngineExternalSession; params: TStringList): TProcess;
 begin
   result := TProcess.create(nil);
   result.Executable := FExecutable;
   result.CurrentDirectory := ExtractFileDir(FExecutable);
   result.Parameters := params;
-  result.ShowWindow := swoHIDE;
-  result.Options := [poUsePipes];
+  result.ShowWindow := swoShow; // swoHIDE;
+  result.Options := [];
   result.Execute;
+end;
+
+function TTestEngineExternalCmdLine.canDebug: boolean;
+begin
+  result := false;
 end;
 
 end.

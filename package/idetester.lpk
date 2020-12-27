@@ -58,10 +58,6 @@
         <Filename Value="..\source\idetester_console.pas"/>
         <UnitName Value="idetester_console"/>
       </Item>
-      <Item>
-        <Filename Value="..\source\idetester_debug_form.pas"/>
-        <UnitName Value="idetester_debug_form"/>
-      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

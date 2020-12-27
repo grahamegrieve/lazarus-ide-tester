@@ -3,6 +3,7 @@
   <ProjectGroup FileVersion="2">
     <Targets>
       <Target FileName="package\idetester.lpk"/>
+      <Target FileName="ide\idetester_dsgn.lpk"/>
       <Target FileName="project\idetester_standalone.lpi">
         <BuildModes>
           <Mode Name="Default"/>

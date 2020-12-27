@@ -54,13 +54,8 @@ type
     function doesReload : boolean; override;
     function canDebug : boolean; override;
 
-    function paramsForTest(test : TTestNode) : String; override;
-    function paramsForCheckedTests(test : TTestNode; session : TTestSession) : String; override;
-    function paramsForLoad() : String; override;
-    function executableName() : String; override;
-
     function prepareToRunTests : TTestSession; override;
-    procedure runTest(session : TTestSession; node : TTestNode; debug : boolean); override;
+    procedure runTest(session : TTestSession; node : TTestNode); override;
     procedure terminateTests(session: TTestSession); override;
     procedure finishTestRun(session : TTestSession); override;
   end;
@@ -250,32 +245,12 @@ begin
   result := false;
 end;
 
-function TTestEngineDirect.paramsForTest(test: TTestNode): String;
-begin
-  result := 'n/a';
-end;
-
-function TTestEngineDirect.paramsForCheckedTests(test: TTestNode; session : TTestSession): String;
-begin
-  result := 'n/a';
-end;
-
-function TTestEngineDirect.paramsForLoad(): String;
-begin
-  result := 'n/a';
-end;
-
-function TTestEngineDirect.executableName(): String;
-begin
-  result := 'n/a';
-end;
-
 function TTestEngineDirect.prepareToRunTests: TTestSession;
 begin
   result := TTestSessionDirect.Create;
 end;
 
-procedure TTestEngineDirect.runTest(session: TTestSession; node: TTestNode; debug : boolean);
+procedure TTestEngineDirect.runTest(session: TTestSession; node: TTestNode);
 var
   sess : TTestSessionDirect;
   listenerProxy : ITestListener;

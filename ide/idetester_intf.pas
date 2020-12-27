@@ -45,6 +45,7 @@ begin
   engine := TTestEngineIDE.create;
   IdeTesterForm.engine := engine;
   LazarusIDE.AddHandlerOnProjectOpened(engine.openProject, false);
+  LazarusIDE.AddHandlerOnRunFinished(engine.endRun, false);
 end;
 
 
