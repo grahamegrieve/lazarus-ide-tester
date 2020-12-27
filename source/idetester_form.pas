@@ -13,6 +13,8 @@ uses
 
 const
   DEFAULT_KILL_TIME_DELAY = 5000;
+  IMG_INDEX_STOP = 4;
+  IMG_INDEX_WAIT = 5;
 
 type
   // for the virtual tree
@@ -74,8 +76,6 @@ type
     actTestDebugSelected: TAction;
     actTestConfigure: TAction;
     actTestReload: TAction;
-    actTestSelectAll: TAction;
-    actTestUnselectAll: TAction;
     actTestReset: TAction;
     actTestCopy: TAction;
     actTestStop: TAction;
@@ -277,8 +277,6 @@ begin
   actTestDebugSelected.Caption := rs_IdeTester_Caption_DebugSelected_NODE;
   actTestConfigure.Caption := rs_IdeTester_Caption_Configure;
   actTestReload.Caption := rs_IdeTester_Caption_Reload;
-  actTestSelectAll.Caption := rs_IdeTester_Caption_SelectAll_NODE;
-  actTestUnselectAll.Caption := rs_IdeTester_Caption_UnselectAll_NODE;
   actTestReset.Caption := rs_IdeTester_Caption_Reset_NODE;
   actTestCopy.Caption := rs_IdeTester_Caption_Copy_NODE;
   actTestStop.Caption := rs_IdeTester_Caption_Stop;
@@ -289,8 +287,6 @@ begin
   actTestDebugSelected.Hint := rs_IdeTester_Hint_DebugSelected;
   actTestConfigure.Hint := rs_IdeTester_Hint_Configure;
   actTestReload.Hint := rs_IdeTester_Hint_Reload;
-  actTestSelectAll.Hint := rs_IdeTester_Hint_SelectAll;
-  actTestUnselectAll.Hint := rs_IdeTester_Hint_UnselectAll;
   actTestReset.Hint := rs_IdeTester_Hint_Reset;
   actTestCopy.Hint := rs_IdeTester_Hint_Copy;
   actTestStop.Hint := rs_IdeTester_Hint_Stop;
@@ -348,10 +344,8 @@ var
 begin
   hasTests := tc > 0;
   actTestCopy.Enabled := not FRunning and hasTests;
-  actTestSelectAll.Enabled := not FRunning and hasTests;
   actTestReload.Enabled := not FRunning;
   actTestConfigure.Enabled := not FRunning;
-  actTestUnselectAll.Enabled := not FRunning and hasTests;
   actTestReset.Enabled := not FRunning and hasTests;
   actTestStop.Enabled := FRunning;
   actTestRunFailed.Enabled := not FRunning and (fc > 0);
@@ -513,8 +507,6 @@ begin
   begin
     actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_NODE;
     actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_NODE;
-    actTestSelectAll.caption := rs_IdeTester_Caption_SelectAll_NODE;
-    actTestUnselectAll.caption := rs_IdeTester_Caption_UnselectAll_NODE;
     actTestReset.caption := rs_IdeTester_Caption_Reset_NODE;
     actTestCopy.caption := rs_IdeTester_Caption_Copy_NODE;
   end
@@ -522,8 +514,6 @@ begin
   begin
     actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_LEAF;
     actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_LEAF;
-    actTestSelectAll.caption := rs_IdeTester_Caption_SelectAll_LEAF;
-    actTestUnselectAll.caption := rs_IdeTester_Caption_UnselectAll_LEAF;
     actTestReset.caption := rs_IdeTester_Caption_Reset_LEAF;
     actTestCopy.caption := rs_IdeTester_Caption_Copy_LEAF;
   end;
@@ -765,7 +755,7 @@ begin
   if engine.canTerminate then
   begin
     FKillTime := GetTickCount64 + StrToInt(store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
-    actTestStop.ImageIndex := 14;
+    actTestStop.ImageIndex := IMG_INDEX_WAIT;
   end;
 end;
 
@@ -987,7 +977,7 @@ begin
   FRunningTest := nil;
   FKillTime := 0;
   FEndTime := GetTickCount64;
-  actTestStop.ImageIndex := 3;
+  actTestStop.ImageIndex := IMG_INDEX_STOP;
   engine.finishTestRun(FSession);
   FSession := nil;
   Timer1.Enabled := false;
