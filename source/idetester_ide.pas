@@ -408,7 +408,7 @@ begin
     if LazarusIDE.DoSaveAll([sfCanAbort]) <> mrOK then
       exit(false);
 
-  lb := IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0)))+'lazbuild.exe';
+  lb := IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0)))+{$IFDEF MSWINDOWS}'lazbuild.exe'{$ELSE}'lazbuild'{$ENDIF};
   if not FileExists(lpi) then
     ShowMessage(Format(rs_IdeTester_Err_Project_Not_Found, [lpi]))
   else if not FileExists(lb) then
