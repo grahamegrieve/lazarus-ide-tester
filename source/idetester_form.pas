@@ -336,6 +336,12 @@ begin
     pbBarPaint(pbBar);
     FLoading := false;
   end;
+  if tbBtnReload.Width > 32 then
+    ToolBar1.ImagesWidth := 32
+  else if tbBtnReload.Width > 24 then
+    ToolBar1.ImagesWidth := 24
+  else
+    ToolBar1.ImagesWidth := 16;
 end;
 
 procedure TIdeTesterForm.setActionStatus(tc, fc : integer);
