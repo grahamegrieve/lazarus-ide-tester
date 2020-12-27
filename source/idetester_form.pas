@@ -336,12 +336,21 @@ begin
     pbBarPaint(pbBar);
     FLoading := false;
   end;
-  if tbBtnReload.Width > 32 then
-    ToolBar1.ImagesWidth := 32
-  else if tbBtnReload.Width > 24 then
-    ToolBar1.ImagesWidth := 24
-  else
-    ToolBar1.ImagesWidth := 16;
+  //if tbBtnReload.Width > 40 then
+  //begin
+  //  ToolBar1.ImagesWidth := 32;
+  //  tvTests.ImagesWidth := 32
+  //end
+  //else if tbBtnReload.Width > 28 then
+  //begin
+  //  ToolBar1.ImagesWidth := 24;
+  //  tvTests.ImagesWidth := 24
+  //end
+  //else
+  //begin
+  //  ToolBar1.ImagesWidth := 16;
+  //  tvTests.ImagesWidth := 16;
+  //end;
 end;
 
 procedure TIdeTesterForm.setActionStatus(tc, fc : integer);
@@ -494,7 +503,6 @@ begin
   engine.loadAllTests(nodeFactory, not FLoading);
   if FTestInfo.Count > 0 then
   begin
-
     tvTests.Selected[FTestInfo[0].node] := true;
     tvTests.Expanded[FTestInfo[0].node] := true;
   end
