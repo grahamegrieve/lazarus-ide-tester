@@ -67,6 +67,40 @@ You can also check and uncheck tests in the tree
 
 Displays the current status of the tests / testing process
 
+### Configuration Options
+
+![options](https://github.com/grahamegrieve/lazarus-ide-tester/blob/main/doco/options.png)
+
+Note that the configuration options are stored in the [project].lps file, so are not committed
+to version control (or should not be).
+
+#### Test Project
+
+Often / usually, an application will have a dedicated test project, instead of building the tests 
+into the application being developed. Choose the project (.lpi) for the project, and then this 
+project will be compiled and executed rather instead of the current project.
+
+Notes:
+
+* If you provide an alternative project, you can specify to auto-save editor files before running the tests (because unsaved code won't be tested). 
+* The selected test project will need to compile using lazbuild for this option. This can be tricky with multi-platforms etc. 
+
+#### Additional Execution Parameters
+
+Additional parameters passed directly to the test application. 
+These can be used for:
+
+* additional parameters around start up mode, or local 
+* configuration options for folders etc so testing resources can be found
+* passwords for testing protected resources
+
+#### Time to wait
+
+The tests are run in a background process. When the tests are stopped, 
+the controller waits for the currently running test to complete. If 
+the test takes longer than this specified time, then the process will 
+be terminated, and no clean up will happen.
+
 # Installing the IDETester
 
 1. Get the code from the git repository https://github.com/grahamegrieve/lazarus-ide-tester
