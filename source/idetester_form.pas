@@ -144,7 +144,7 @@ type
     FRunningTest : TTestNode;
     FTestsTotal, FTestsCount, FFailCount, FErrorCount : cardinal;
     FStartTime, FEndTime : UInt64;
-    FWantStop : boolean;
+    FRunning, FWantStop : boolean;
     FSelectedNode : TTestNode;
     FSession : TTestSession;
     FLock : TRTLCriticalSection;
@@ -176,7 +176,7 @@ type
     procedure doEngineStatus(sender : TObject; msg : String);
     procedure setDoExecute(node: TTestNode);
     procedure setDoExecuteParent(node: TTestNode);
-    procedure setActionStatus(running : boolean);
+    procedure setActionStatus(tc, fc : integer);
     procedure StartTestRun(debug : boolean);
     procedure DoExecuteTests; // in alternative thread
     procedure FinishTestRun;
@@ -272,7 +272,7 @@ begin
   FLoading := true;
 
   pbBarPaint(pbBar);
-  setActionStatus(false);
+  UpdateTotals;
 
   actTestDebugSelected.Caption := rs_IdeTester_Caption_DebugSelected_NODE;
   actTestConfigure.Caption := rs_IdeTester_Caption_Configure;
@@ -342,19 +342,22 @@ begin
   end;
 end;
 
-procedure TIdeTesterForm.setActionStatus(running: boolean);
+procedure TIdeTesterForm.setActionStatus(tc, fc : integer);
+var
+  hasTests : boolean;
 begin
-  actTestCopy.Enabled := not running;
-  actTestSelectAll.Enabled := not running;
-  actTestReload.Enabled := not running;
-  actTestConfigure.Enabled := not running;
-  actTestUnselectAll.Enabled := not running;
-  actTestReset.Enabled := not running;
-  actTestStop.Enabled := running;
-  actTestRunFailed.Enabled := not running;
-  actTestRunChecked.Enabled := not running;
-  actTestRunSelected.Enabled := not running;
-  actTestDebugSelected.Enabled := not running and (store <> nil) and (store.read(tsmConfig, 'testproject', '') <> '');
+  hasTests := tc > 0;
+  actTestCopy.Enabled := not FRunning and hasTests;
+  actTestSelectAll.Enabled := not FRunning and hasTests;
+  actTestReload.Enabled := not FRunning;
+  actTestConfigure.Enabled := not FRunning;
+  actTestUnselectAll.Enabled := not FRunning and hasTests;
+  actTestReset.Enabled := not FRunning and hasTests;
+  actTestStop.Enabled := FRunning;
+  actTestRunFailed.Enabled := not FRunning and (fc > 0);
+  actTestRunChecked.Enabled := not FRunning and hasTests;
+  actTestRunSelected.Enabled := not FRunning and hasTests;
+  actTestDebugSelected.Enabled := not FRunning and hasTests and (store <> nil) and (store.read(tsmConfig, 'testproject', '') = '');
 end;
 
 // -- Tree Management ----------------------------------------------------------
@@ -436,16 +439,7 @@ begin
   end;
   lblStatus.caption := s;
 
-  actTestRunSelected.enabled := tc > 0;
-  actTestDebugSelected.enabled := tc > 0;
-  actTestSelectAll.enabled := tc > 0;
-  actTestUnselectAll.enabled := tc > 0;
-  actTestSelectAll.enabled := tc > 0;
-  actTestUnselectAll.enabled := tc > 0;
-  actTestCopy.enabled := tc > 0;
-  actTestRunChecked.enabled := cc > 0;
-  actTestRunFailed.enabled := fc + ec > 0;
-  actTestReset.enabled := res;
+  setActionStatus(tc, fc + ec);
 end;
 
 procedure TIdeTesterForm.doReinitialise(sender: TObject);
@@ -456,7 +450,6 @@ begin
   FTestsTotal := 0;
   UpdateTotals;
   pbBarPaint(pbBar);
-  setActionStatus(false);
 end;
 
 procedure TIdeTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
@@ -968,12 +961,13 @@ var
 begin
   saveState;
   FStartTime := 0;
+  FRunning := true;
   FWantStop := false;
   FTestsCount := 0;
   FFailCount := 0;
   FErrorCount := 0;
   pbBar.Invalidate;
-  setActionStatus(true);
+  setActionStatus(1, 0);
   timer1.Enabled := true;
 
   FSession := engine.prepareToRunTests;
@@ -997,8 +991,8 @@ begin
   engine.finishTestRun(FSession);
   FSession := nil;
   Timer1.Enabled := false;
-  setActionStatus(false);
   saveState;
+  FRunning := false;
   UpdateTotals;
   pbBarPaint(pbBar);
 end;
