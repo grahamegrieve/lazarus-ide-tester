@@ -40,7 +40,7 @@ resourcestring
   rs_IdeTester_Err_Node_Not_Found = 'Node %s not found!';
   rs_IdeTester_Err_No_Tests = 'No Tests Checked';
   rs_IdeTester_Err_No_FailedTests = 'No Failed Tests';
-  rs_IdeTester_Err_No_Load_Tests = 'Unable to load tests. Check that the project runs the tests correctly (see %s, and on windows, check it is a console application)';
+  rs_IdeTester_Err_No_Load_Tests = 'Unable to load tests. Check that the project runs the tests correctly (see %s)';
   rs_IdeTester_Err_Project_Not_Found = 'Test Project %s not found';
   rs_IdeTester_Err_LazBuild_Not_Found = 'LazBuild not found at %s';
   rs_IdeTester_Err_LazBuild_Failed = 'Compiling test project failed - see %s for log';
@@ -54,6 +54,8 @@ resourcestring
   rs_IdeTester_Msg_NOT_SUPPORTED = 'not supported here';
   rs_IdeTester_Msg_Starts = 'Starts';
   rs_IdeTester_Msg_Ends = 'Ends';
+  rs_IdeTester_Msg_Compiling = 'Compiling %s';
+  rs_IdeTester_Msg_Loading = 'Loading';
 
   rs_IdeTester_PBar_Runs = 'Tests: %s/%s';
   rs_IdeTester_PBar_Errors = '%s    Errors: %s';
@@ -100,6 +102,12 @@ resourcestring
   rs_IdeTester_Hint_RunFailed = 'Re-run all failed tests (including errors)';
   rs_IdeTester_Hint_RunChecked = 'Run All Checked Tests';
   rs_IdeTester_Hint_RunSelected = 'Run Selected test + children';
+
+  rs_IdeTester_ProjectType_None = 'None';
+  rs_IdeTester_ProjectType_Program = 'Program';
+  rs_IdeTester_ProjectType_Library = 'Library';
+  rs_IdeTester_ProjectType_Package = 'Package';
+  rs_IdeTester_ProjectType_Unit = 'Unit';
 
 implementation
 

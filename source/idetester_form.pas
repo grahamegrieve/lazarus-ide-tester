@@ -418,17 +418,22 @@ begin
     end;
   end;
 
-  s := inttostr(tc)+ ' '+rs_IdeTester_SBar_Tests+': ';
-  s := s + inttostr(cc)+ ' '+rs_IdeTester_SBar_Checked;
-  s := s + ', '+inttostr(pc)+' '+rs_IdeTester_SBar_Passed;
-  if (fc + ec > 0) then
-    s := s + ', '+inttostr(fc+ec)+' '+rs_IdeTester_SBar_Failed;
-  if (ec > 0) then
-    s := s + ' ('+inttostr(ec)+' '+rs_IdeTester_SBar_Errors+')';
-  if (nr > 0) then
-    s := s + ', '+inttostr(nr)+' '+rs_IdeTester_SBar_NotRun;
-  if (ec + fc + nr = 0) then
-    s := s + ' - '+rs_IdeTester_SBar_All_OK;
+  if tc = 0 then
+    s := inttostr(tc)+ ' '+rs_IdeTester_SBar_Tests
+  else
+  begin
+    s := inttostr(tc)+ ' '+rs_IdeTester_SBar_Tests+': ';
+    s := s + inttostr(cc)+ ' '+rs_IdeTester_SBar_Checked;
+    s := s + ', '+inttostr(pc)+' '+rs_IdeTester_SBar_Passed;
+    if (fc + ec > 0) then
+      s := s + ', '+inttostr(fc+ec)+' '+rs_IdeTester_SBar_Failed;
+    if (ec > 0) then
+      s := s + ' ('+inttostr(ec)+' '+rs_IdeTester_SBar_Errors+')';
+    if (nr > 0) then
+      s := s + ', '+inttostr(nr)+' '+rs_IdeTester_SBar_NotRun;
+    if (ec + fc + nr = 0) then
+      s := s + ' - '+rs_IdeTester_SBar_All_OK;
+  end;
   lblStatus.caption := s;
 
   actTestRunSelected.enabled := tc > 0;
@@ -513,27 +518,21 @@ begin
   FSelectedNode := tn(node);
   if FSelectedNode.hasChildren then
   begin
-    actTestRunSelected.caption := 'Run these tests';
-    actTestDebugSelected.caption := 'Debug these tests';
-    actTestSelectAll.caption := 'Check these tests';
-    actTestUnselectAll.caption := 'Uncheck these tests';
-    actTestSelectAll.hint := 'Check selected tests + children';
-    actTestUnselectAll.hint := 'Uncheck selected tests + children';
-    actTestCopy.hint := 'Copy results to clipboard for selected tests';
-    actTestRunSelected.caption := 'Run Selected Test + children';
-    actTestDebugSelected.caption := 'Debug Selected Test + children';
+    actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_NODE;
+    actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_NODE;
+    actTestSelectAll.caption := rs_IdeTester_Caption_SelectAll_NODE;
+    actTestUnselectAll.caption := rs_IdeTester_Caption_UnselectAll_NODE;
+    actTestReset.caption := rs_IdeTester_Caption_Reset_NODE;
+    actTestCopy.caption := rs_IdeTester_Caption_Copy_NODE;
   end
   else
   begin
-    actTestRunSelected.caption := 'Run this test';
-    actTestRunSelected.caption := 'Debug this test';
-    actTestSelectAll.caption := 'Check this test';
-    actTestUnselectAll.caption := 'Uncheck this test';
-    actTestSelectAll.hint := 'Check selected test';
-    actTestUnselectAll.hint := 'Uncheck selected test';
-    actTestCopy.hint := 'Copy results to clipboard for selected test';
-    actTestRunSelected.caption := 'Run Selected Test';
-    actTestDebugSelected.caption := 'Debug Selected Test';
+    actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_LEAF;
+    actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_LEAF;
+    actTestSelectAll.caption := rs_IdeTester_Caption_SelectAll_LEAF;
+    actTestUnselectAll.caption := rs_IdeTester_Caption_UnselectAll_LEAF;
+    actTestReset.caption := rs_IdeTester_Caption_Reset_LEAF;
+    actTestCopy.caption := rs_IdeTester_Caption_Copy_LEAF;
   end;
   UpdateTotals;
 end;

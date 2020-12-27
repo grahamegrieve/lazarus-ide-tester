@@ -270,16 +270,12 @@ end;
 
 procedure TTestEngineExternal.processLine(line: String; var finished : boolean);
 begin
-  //if line.StartsWith('$#$#') then
-  //begin
-    //line := line.Substring(4);
-    case FOutputMode of
-      teomStarting : if line = '-- Test List ---' then FOutputMode := teomListing;
-      teomListing : ProcessEntry(line);
-      teomRunning : ProcessRun(line);
-      teomDone : finished := true;
-    end;
-  //end;
+  case FOutputMode of
+    teomStarting : if line = '-- Test List ---' then FOutputMode := teomListing;
+    teomListing : ProcessEntry(line);
+    teomRunning : ProcessRun(line);
+    teomDone : finished := true;
+  end;
 end;
 
 procedure TTestEngineExternal.processEntry(line: String);
@@ -661,7 +657,7 @@ begin
   result.Executable := FExecutable;
   result.CurrentDirectory := ExtractFileDir(FExecutable);
   result.Parameters := params;
-  result.ShowWindow := swoShow; // swoHIDE;
+  result.ShowWindow := swoHIDE;
   result.Options := [];
   result.Execute;
 end;

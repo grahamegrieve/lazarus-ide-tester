@@ -66,13 +66,14 @@ implementation
 function nameForType(p : TProjectExecutableType) : String;
 begin
   case p of
-    petNone : result := 'None';
-    petProgram : result := 'Program';
-    petLibrary : result := 'Library';
-    petPackage : result := 'Package';
-    petUnit : result := 'Unit';
+    petNone : result := rs_IdeTester_ProjectType_None;
+    petProgram : result := rs_IdeTester_ProjectType_Program;
+    petLibrary : result := rs_IdeTester_ProjectType_Library;
+    petPackage : result := rs_IdeTester_ProjectType_Package;
+    petUnit : result := rs_IdeTester_ProjectType_Unit;
   end;
 end;
+
 
 type
   { TConsoleOutputProcessor }
@@ -211,10 +212,10 @@ begin
   begin
     if sess.FExeName = '' then
     begin
-      setStatus('Compiling '+LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']);
+      setStatus(Format(rs_IdeTester_Msg_Compiling, [LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']]));
       if not sess.compile then
         exit;
-      setStatus('Loading');
+      setStatus(rs_IdeTester_Msg_Loading);
     end;
     result := TProcess.create(nil);
     result.Executable := sess.FExeName;
@@ -244,9 +245,9 @@ end;
 function TTestEngineIDE.prepareToRunTests: TTestSession;
 begin
   Result := TTestEngineIDESession.create;
-  setStatus('Compiling '+LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']);
+  setStatus(format(rs_IdeTester_Msg_Compiling, [LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']]));
   (result as TTestEngineIDESession).compile;
-  setStatus('Running');
+  setStatus(rs_IdeTester_Msg_Loading);
 end;
 
 function TTestEngineIDE.OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
@@ -373,7 +374,6 @@ begin
 
     // 5. restore the mode
     LazarusIDE.ActiveProject.RunParameters.ActiveModeName := mode;
-
   end;
 end;
 
