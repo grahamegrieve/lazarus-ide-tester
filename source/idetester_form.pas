@@ -336,21 +336,11 @@ begin
     pbBarPaint(pbBar);
     FLoading := false;
   end;
-  //if tbBtnReload.Width > 40 then
-  //begin
-  //  ToolBar1.ImagesWidth := 32;
-  //  tvTests.ImagesWidth := 32
-  //end
-  //else if tbBtnReload.Width > 28 then
-  //begin
-  //  ToolBar1.ImagesWidth := 24;
-  //  tvTests.ImagesWidth := 24
-  //end
-  //else
-  //begin
-  //  ToolBar1.ImagesWidth := 16;
-  //  tvTests.ImagesWidth := 16;
-  //end;
+  if PixelsPerInch > 96 then
+  begin
+    ToolBar1.ImagesWidth := 32;
+    tvTests.ImagesWidth := 32
+  end;
 end;
 
 procedure TIdeTesterForm.setActionStatus(tc, fc : integer);
