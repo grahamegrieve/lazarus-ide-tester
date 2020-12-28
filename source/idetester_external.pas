@@ -119,7 +119,7 @@ type
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
-    function hasParameters : boolean; override;
+    function canParameters : boolean; override;
 
     function prepareToRunTests : TTestSession; override;
     procedure runTest(session : TTestSession; node : TTestNode); override;
@@ -137,6 +137,7 @@ type
   public
     constructor Create(executable : String);
     function canDebug : boolean; override;
+    function canStart : boolean; override;
   end;
 
 Function StringSplit(Const sValue, sDelimiter : String; Var sLeft, sRight: String) : Boolean;
@@ -579,7 +580,7 @@ begin
 
 end;
 
-function TTestEngineExternal.hasParameters: boolean;
+function TTestEngineExternal.canParameters: boolean;
 begin
   Result := true;
 end;
@@ -641,7 +642,7 @@ end;
 
 procedure TTestEngineExternal.finishTestRun(session: TTestSession);
 begin
-
+  //  nothing here
 end;
 
 { TTestEngineExternalCmdLine }
@@ -666,6 +667,11 @@ end;
 function TTestEngineExternalCmdLine.canDebug: boolean;
 begin
   result := false;
+end;
+
+function TTestEngineExternalCmdLine.canStart: boolean;
+begin
+  result := FExecutable <> '';
 end;
 
 end.

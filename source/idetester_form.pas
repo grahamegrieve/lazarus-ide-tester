@@ -162,6 +162,7 @@ type
 
     // -- init ----
     procedure doReinitialise(sender : TObject);
+    procedure doEngineUpdateStatus(sender : TObject);
     procedure LoadTree;
     function nodeFactory(parent : TTestNode) : TTestNode;
     procedure refreshNode(test : TTestNode);
@@ -173,7 +174,7 @@ type
     procedure checkStateOfChildren(node: TTestNode);
 
     // -- running tests ----
-    procedure doEngineStatus(sender : TObject; msg : String);
+    procedure doEngineStatusMessage(sender : TObject; msg : String);
     procedure setDoExecute(node: TTestNode);
     procedure setDoExecuteParent(node: TTestNode);
     procedure setActionStatus(tc, fc : integer);
@@ -297,6 +298,8 @@ end;
 
 procedure TIdeTesterForm.FormDestroy(Sender: TObject);
 begin
+  if FRunning and engine.canTerminate then
+    killRunningTests;
   FShuttingDown := true;
   saveState;
   FTestInfo.Free;
@@ -323,7 +326,7 @@ begin
       tbBtnReload.visible := false;
       tbBtnReloadSep.visible := false;
     end;
-    if not (engine.canTerminate or engine.hasParameters or engine.hasTestProject) then
+    if not (engine.canTerminate or engine.canParameters or engine.canTestProject) then
     begin
       tbBtnConfigure.visible := false;
     end;
@@ -348,15 +351,30 @@ var
   hasTests : boolean;
 begin
   hasTests := tc > 0;
-  actTestCopy.Enabled := not FRunning and hasTests;
-  actTestReload.Enabled := not FRunning;
-  actTestConfigure.Enabled := not FRunning;
-  actTestReset.Enabled := not FRunning and hasTests;
-  actTestStop.Enabled := FRunning;
-  actTestRunFailed.Enabled := not FRunning and (fc > 0);
-  actTestRunChecked.Enabled := not FRunning and hasTests;
-  actTestRunSelected.Enabled := not FRunning and hasTests;
-  actTestDebugSelected.Enabled := not FRunning and hasTests and (store <> nil) and (store.read(tsmConfig, 'testproject', '') = '');
+  if (engine = nil) or (store = nil) then
+  begin
+    actTestCopy.Enabled := false;
+    actTestReload.Enabled := false;
+    actTestConfigure.Enabled := false;
+    actTestReset.Enabled := false;
+    actTestStop.Enabled := false;
+    actTestRunFailed.Enabled := false;
+    actTestRunChecked.Enabled := false;
+    actTestRunSelected.Enabled := false;
+    actTestDebugSelected.Enabled := false;
+  end
+  else
+  begin
+    actTestCopy.Enabled := not FRunning and hasTests;
+    actTestReload.Enabled := not FRunning and engine.canStart;
+    actTestConfigure.Enabled := not FRunning;
+    actTestReset.Enabled := not FRunning and hasTests;
+    actTestStop.Enabled := FRunning and engine.canStop;
+    actTestRunFailed.Enabled := not FRunning and (fc > 0) and engine.canStart;
+    actTestRunChecked.Enabled := not FRunning and hasTests and engine.canStart;
+    actTestRunSelected.Enabled := not FRunning and hasTests and engine.canStart;
+    actTestDebugSelected.Enabled := engine.canDebug and not FRunning and hasTests and (store.read(tsmConfig, 'testproject', '') = '') and engine.canStart;
+  end;
 end;
 
 // -- Tree Management ----------------------------------------------------------
@@ -373,7 +391,8 @@ procedure TIdeTesterForm.SetEngine(AValue: TTestEngine);
 begin
   FEngine := AValue;
   FEngine.OnReinitialise := doReinitialise;
-  FEngine.OnStatus := doEngineStatus;
+  FEngine.OnStatusMessage := doEngineStatusMessage;
+  FEngine.OnUpdateStatus := doEngineUpdateStatus;
   FEngine.settings := store;
 end;
 
@@ -449,6 +468,14 @@ begin
   FTestsTotal := 0;
   UpdateTotals;
   pbBarPaint(pbBar);
+end;
+
+procedure TIdeTesterForm.doEngineUpdateStatus(sender: TObject);
+begin
+  if FRunning then
+    setActionStatus(FTestsCount, 0)
+  else
+    UpdateTotals;
 end;
 
 procedure TIdeTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
@@ -629,7 +656,7 @@ begin
   end;
 end;
 
-procedure TIdeTesterForm.doEngineStatus(sender: TObject; msg: String);
+procedure TIdeTesterForm.doEngineStatusMessage(sender: TObject; msg: String);
 begin
   lblStatus.caption := msg;
   lblStatus.Update;
@@ -711,7 +738,7 @@ end;
 
 procedure TIdeTesterForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  CanClose := FRunningTest = nil;
+  CanClose := not FRunning;
 end;
 
 procedure TIdeTesterForm.actTestRunFailedExecute(Sender: TObject);
@@ -720,7 +747,7 @@ var
 begin
   for ti in FTestInfo do
   begin
-    ti.execute := (ti.outcome in [toFail, toError, toHalt]) and (ti.CheckState <> tcsUnchecked);
+    ti.execute := (ti.outcome in [toFail, toError, toHalt]);
     if ti.execute then
       setDoExecuteParent(ti.parent);
   end;
@@ -1032,8 +1059,8 @@ begin
   IDETesterSettings := TIDETesterSettings.create(self);
   try
     IDETesterSettings.pnlKillTime.visible := engine.canTerminate;
-    IDETesterSettings.pnlParameters.visible := engine.hasParameters;
-    IDETesterSettings.pnlTester.visible := engine.hasTestProject;
+    IDETesterSettings.pnlParameters.visible := engine.canParameters;
+    IDETesterSettings.pnlTester.visible := engine.canTestProject;
     IDETesterSettings.editWaitTime.Text := store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY));
     IDETesterSettings.edtParameters.text := store.read(tsmConfig, 'parameters', '');
     IDETesterSettings.edtTester.text := store.read(tsmConfig, 'testproject', '');

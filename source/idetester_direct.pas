@@ -53,6 +53,7 @@ type
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
     function canDebug : boolean; override;
+    function canStart : boolean; override;
 
     function prepareToRunTests : TTestSession; override;
     procedure runTest(session : TTestSession; node : TTestNode); override;
@@ -243,6 +244,11 @@ end;
 function TTestEngineDirect.canDebug: boolean;
 begin
   result := false;
+end;
+
+function TTestEngineDirect.canStart: boolean;
+begin
+  result := true;
 end;
 
 function TTestEngineDirect.prepareToRunTests: TTestSession;

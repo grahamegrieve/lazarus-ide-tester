@@ -139,26 +139,29 @@ type
   TTestEngine = class abstract (TObject)
   private
     FListener: TTestListener;
-    FOnReinitialise: TNotifyEvent;
-    FOnStatus: TLogEvent;
+    FOnReinitialise, FOnUpdateStatus: TNotifyEvent;
+    FOnStatusMessage: TLogEvent;
     FSettings : TTestSettingsProvider;
   protected
-    procedure setStatus(s : String);
+    procedure setStatusMessage(s : String);
   public
     property listener : TTestListener read FListener write FListener;
     property settings : TTestSettingsProvider read FSettings write FSettings;
 
     property OnReinitialise : TNotifyEvent read FOnReinitialise write FOnReinitialise;
-    property OnStatus: TLogEvent read FOnStatus write FOnStatus;
+    property OnStatusMessage: TLogEvent read FOnStatusMessage write FOnStatusMessage;
+    property OnUpdateStatus: TNotifyEvent read FOnUpdateStatus write FOnUpdateStatus;
 
     procedure loadAllTests(factory : TNodeFactory; manual : boolean); virtual; abstract; // get a list of tests
     function threadMode : TTestEngineThreadMode; virtual; abstract;
 
     function canTerminate : boolean; virtual; abstract; // true if it's ok to call terminateTests
     function canDebug : boolean; virtual; abstract;
+    function canStart : boolean; virtual; abstract;
+    function canStop : boolean; virtual;
     function doesReload : boolean; virtual; abstract;
-    function hasParameters : boolean; virtual;
-    function hasTestProject : boolean; virtual;
+    function canParameters : boolean; virtual;
+    function canTestProject : boolean; virtual;
 
     function prepareToRunTests : TTestSession; virtual; abstract; // get ready to run tests - do whatever is requred (e.g. compile in the ide)
     function setUpDebug(session : TTestSession; node : TTestNode) : boolean; virtual;
@@ -198,17 +201,22 @@ end;
 
 { TTestEngine }
 
-procedure TTestEngine.setStatus(s: String);
+procedure TTestEngine.setStatusMessage(s: String);
 begin
-  FOnStatus(self, s);
+  FOnStatusMessage(self, s);
 end;
 
-function TTestEngine.hasParameters: boolean;
+function TTestEngine.canStop: boolean;
+begin
+  result := true;
+end;
+
+function TTestEngine.canParameters: boolean;
 begin
   result := false;
 end;
 
-function TTestEngine.hasTestProject: boolean;
+function TTestEngine.canTestProject: boolean;
 begin
   result := false;
 end;
