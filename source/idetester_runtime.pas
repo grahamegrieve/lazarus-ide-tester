@@ -395,10 +395,7 @@ begin
   if client = nil then
     writeln('$#$#'+msg)
   else
-  begin
-    writeln('Send to IPC '+client.ServerID+':'+msg);
     client.SendStringMessage(msg);
-  end;
 end;
 
 { TTestInfo }
