@@ -13,6 +13,8 @@ uses
 
 const
   DEFAULT_KILL_TIME_DELAY = 5000;
+  IMG_INDEX_STOP = 4;
+  IMG_INDEX_WAIT = 5;
 
 type
   // for the virtual tree
@@ -74,8 +76,6 @@ type
     actTestDebugSelected: TAction;
     actTestConfigure: TAction;
     actTestReload: TAction;
-    actTestSelectAll: TAction;
-    actTestUnselectAll: TAction;
     actTestReset: TAction;
     actTestCopy: TAction;
     actTestStop: TAction;
@@ -144,7 +144,7 @@ type
     FRunningTest : TTestNode;
     FTestsTotal, FTestsCount, FFailCount, FErrorCount : cardinal;
     FStartTime, FEndTime : UInt64;
-    FWantStop : boolean;
+    FRunning, FWantStop : boolean;
     FSelectedNode : TTestNode;
     FSession : TTestSession;
     FLock : TRTLCriticalSection;
@@ -176,7 +176,7 @@ type
     procedure doEngineStatus(sender : TObject; msg : String);
     procedure setDoExecute(node: TTestNode);
     procedure setDoExecuteParent(node: TTestNode);
-    procedure setActionStatus(running : boolean);
+    procedure setActionStatus(tc, fc : integer);
     procedure StartTestRun(debug : boolean);
     procedure DoExecuteTests; // in alternative thread
     procedure FinishTestRun;
@@ -272,13 +272,11 @@ begin
   FLoading := true;
 
   pbBarPaint(pbBar);
-  setActionStatus(false);
+  UpdateTotals;
 
   actTestDebugSelected.Caption := rs_IdeTester_Caption_DebugSelected_NODE;
   actTestConfigure.Caption := rs_IdeTester_Caption_Configure;
   actTestReload.Caption := rs_IdeTester_Caption_Reload;
-  actTestSelectAll.Caption := rs_IdeTester_Caption_SelectAll_NODE;
-  actTestUnselectAll.Caption := rs_IdeTester_Caption_UnselectAll_NODE;
   actTestReset.Caption := rs_IdeTester_Caption_Reset_NODE;
   actTestCopy.Caption := rs_IdeTester_Caption_Copy_NODE;
   actTestStop.Caption := rs_IdeTester_Caption_Stop;
@@ -289,8 +287,6 @@ begin
   actTestDebugSelected.Hint := rs_IdeTester_Hint_DebugSelected;
   actTestConfigure.Hint := rs_IdeTester_Hint_Configure;
   actTestReload.Hint := rs_IdeTester_Hint_Reload;
-  actTestSelectAll.Hint := rs_IdeTester_Hint_SelectAll;
-  actTestUnselectAll.Hint := rs_IdeTester_Hint_UnselectAll;
   actTestReset.Hint := rs_IdeTester_Hint_Reset;
   actTestCopy.Hint := rs_IdeTester_Hint_Copy;
   actTestStop.Hint := rs_IdeTester_Hint_Stop;
@@ -340,21 +336,27 @@ begin
     pbBarPaint(pbBar);
     FLoading := false;
   end;
+  if PixelsPerInch > 96 then
+  begin
+    ToolBar1.ImagesWidth := 32;
+    tvTests.ImagesWidth := 32
+  end;
 end;
 
-procedure TIdeTesterForm.setActionStatus(running: boolean);
+procedure TIdeTesterForm.setActionStatus(tc, fc : integer);
+var
+  hasTests : boolean;
 begin
-  actTestCopy.Enabled := not running;
-  actTestSelectAll.Enabled := not running;
-  actTestReload.Enabled := not running;
-  actTestConfigure.Enabled := not running;
-  actTestUnselectAll.Enabled := not running;
-  actTestReset.Enabled := not running;
-  actTestStop.Enabled := running;
-  actTestRunFailed.Enabled := not running;
-  actTestRunChecked.Enabled := not running;
-  actTestRunSelected.Enabled := not running;
-  actTestDebugSelected.Enabled := not running and (store <> nil) and (store.read(tsmConfig, 'testproject', '') <> '');
+  hasTests := tc > 0;
+  actTestCopy.Enabled := not FRunning and hasTests;
+  actTestReload.Enabled := not FRunning;
+  actTestConfigure.Enabled := not FRunning;
+  actTestReset.Enabled := not FRunning and hasTests;
+  actTestStop.Enabled := FRunning;
+  actTestRunFailed.Enabled := not FRunning and (fc > 0);
+  actTestRunChecked.Enabled := not FRunning and hasTests;
+  actTestRunSelected.Enabled := not FRunning and hasTests;
+  actTestDebugSelected.Enabled := not FRunning and hasTests and (store <> nil) and (store.read(tsmConfig, 'testproject', '') = '');
 end;
 
 // -- Tree Management ----------------------------------------------------------
@@ -436,16 +438,7 @@ begin
   end;
   lblStatus.caption := s;
 
-  actTestRunSelected.enabled := tc > 0;
-  actTestDebugSelected.enabled := tc > 0;
-  actTestSelectAll.enabled := tc > 0;
-  actTestUnselectAll.enabled := tc > 0;
-  actTestSelectAll.enabled := tc > 0;
-  actTestUnselectAll.enabled := tc > 0;
-  actTestCopy.enabled := tc > 0;
-  actTestRunChecked.enabled := cc > 0;
-  actTestRunFailed.enabled := fc + ec > 0;
-  actTestReset.enabled := res;
+  setActionStatus(tc, fc + ec);
 end;
 
 procedure TIdeTesterForm.doReinitialise(sender: TObject);
@@ -456,7 +449,6 @@ begin
   FTestsTotal := 0;
   UpdateTotals;
   pbBarPaint(pbBar);
-  setActionStatus(false);
 end;
 
 procedure TIdeTesterForm.tvTestsGetImageIndex(Sender: TBaseVirtualTree; Node: PVirtualNode; Kind: TVTImageKind; Column: TColumnIndex; var Ghosted: Boolean; var ImageIndex: Integer);
@@ -501,7 +493,6 @@ begin
   engine.loadAllTests(nodeFactory, not FLoading);
   if FTestInfo.Count > 0 then
   begin
-
     tvTests.Selected[FTestInfo[0].node] := true;
     tvTests.Expanded[FTestInfo[0].node] := true;
   end
@@ -520,8 +511,6 @@ begin
   begin
     actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_NODE;
     actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_NODE;
-    actTestSelectAll.caption := rs_IdeTester_Caption_SelectAll_NODE;
-    actTestUnselectAll.caption := rs_IdeTester_Caption_UnselectAll_NODE;
     actTestReset.caption := rs_IdeTester_Caption_Reset_NODE;
     actTestCopy.caption := rs_IdeTester_Caption_Copy_NODE;
   end
@@ -529,8 +518,6 @@ begin
   begin
     actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_LEAF;
     actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_LEAF;
-    actTestSelectAll.caption := rs_IdeTester_Caption_SelectAll_LEAF;
-    actTestUnselectAll.caption := rs_IdeTester_Caption_UnselectAll_LEAF;
     actTestReset.caption := rs_IdeTester_Caption_Reset_LEAF;
     actTestCopy.caption := rs_IdeTester_Caption_Copy_LEAF;
   end;
@@ -772,7 +759,7 @@ begin
   if engine.canTerminate then
   begin
     FKillTime := GetTickCount64 + StrToInt(store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
-    actTestStop.ImageIndex := 14;
+    actTestStop.ImageIndex := IMG_INDEX_WAIT;
   end;
 end;
 
@@ -968,12 +955,13 @@ var
 begin
   saveState;
   FStartTime := 0;
+  FRunning := true;
   FWantStop := false;
   FTestsCount := 0;
   FFailCount := 0;
   FErrorCount := 0;
   pbBar.Invalidate;
-  setActionStatus(true);
+  setActionStatus(1, 0);
   timer1.Enabled := true;
 
   FSession := engine.prepareToRunTests;
@@ -993,12 +981,12 @@ begin
   FRunningTest := nil;
   FKillTime := 0;
   FEndTime := GetTickCount64;
-  actTestStop.ImageIndex := 3;
+  actTestStop.ImageIndex := IMG_INDEX_STOP;
   engine.finishTestRun(FSession);
   FSession := nil;
   Timer1.Enabled := false;
-  setActionStatus(false);
   saveState;
+  FRunning := false;
   UpdateTotals;
   pbBarPaint(pbBar);
 end;

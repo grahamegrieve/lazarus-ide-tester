@@ -72,15 +72,11 @@ resourcestring
   rs_IdeTester_SBar_All_OK = 'All OK✓';
 
   rs_IdeTester_Caption_DebugSelected_NODE = 'Debug Selected Test Suite';
-  rs_IdeTester_Caption_SelectAll_NODE = 'Check selected Test Suite';
-  rs_IdeTester_Caption_UnselectAll_NODE = 'Uncheck selected Test Suite';
   rs_IdeTester_Caption_RunSelected_NODE = 'Run Selected Test Suite';
   rs_IdeTester_Caption_Copy_NODE = 'Copy Test Suite Results to Clipboard';
   rs_IdeTester_Caption_Reset_NODE = 'Clear Test Suite Results';
 
   rs_IdeTester_Caption_DebugSelected_LEAF = 'Debug Selected Test';
-  rs_IdeTester_Caption_SelectAll_LEAF = 'Check selected Test';
-  rs_IdeTester_Caption_UnselectAll_LEAF = 'Uncheck selected Test';
   rs_IdeTester_Caption_RunSelected_LEAF = 'Run Selected Test';
   rs_IdeTester_Caption_Copy_LEAF = 'Copy Test Result to Clipboard';
   rs_IdeTester_Caption_Reset_LEAF = 'Clear Test Results';

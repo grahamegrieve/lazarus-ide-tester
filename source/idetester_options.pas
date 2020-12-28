@@ -12,6 +12,9 @@ type
   { TIDETesterSettings }
 
   TIDETesterSettings = class(TForm)
+    Bevel1: TBevel;
+    Bevel2: TBevel;
+    Bevel3: TBevel;
     btnOk: TButton;
     btnCancel: TButton;
     Button1: TButton;
@@ -24,13 +27,14 @@ type
     lblTimeout: TLabel;
     lblExecutionParameters: TLabel;
     odProject: TOpenDialog;
-    Panel1: TPanel;
+    pnlBottom: TPanel;
     pnlKillTime: TPanel;
     pnlParameters: TPanel;
     pnlTester: TPanel;
     procedure Button1Click(Sender: TObject);
     procedure edtTesterChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure FormShow(Sender: TObject);
     procedure lblhelpClick(Sender: TObject);
   private
 
@@ -73,6 +77,20 @@ begin
   {$IFNDEF WINDOWS}
   switchButtons(btnOk, btnCancel);
   {$ENDIF}
+end;
+
+procedure TIDETesterSettings.FormShow(Sender: TObject);
+var
+  h : integer;
+begin
+  h := pnlBottom.Height;
+  if pnlTester.Visible then
+    inc(h, pnlTester.Height);
+  if pnlParameters.Visible then
+    inc(h, pnlParameters.Height);
+  if pnlKillTime.Visible then
+    inc(h, pnlKillTime.Height);
+  Height := h;
 end;
 
 procedure TIDETesterSettings.Button1Click(Sender: TObject);

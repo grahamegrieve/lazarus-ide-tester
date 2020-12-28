@@ -45,12 +45,12 @@ The view has the following features
 
 ### Buttons:
 
-* Reload: Compile the current project, and load all tests from it
+* Reload: Compile the current project, and load all tests from it (not visible when testing directly - see below)
 * Run Selected Test(s) - run the currently selected test, and any children
 * Run Checked Tests - Run the set of tests that are checked
 * Stop Test Run - Stop the current test run 
+* Debug Selected Test(s) - debug the currently selected test (only in IDE)
 * Run Failed Tests - run all tests currently in failed status (including error) 
-* Debug Selected Test(s) - debug the currently selected test. Note: this is not working right now
 * Clear outcomes - forgot all the remembered outcomes
 * Copy - copy the test outcome details to the clipboard
 * Configure - Set configuration options (see below)
@@ -63,18 +63,51 @@ test status can be one of:
 
 You can also check and uncheck tests in the tree
 
-
 ### Status Bar:
 
-Displays the current status of the tests
+Displays the current status of the tests / testing process
+
+### Configuration Options
+
+![options](https://github.com/grahamegrieve/lazarus-ide-tester/blob/main/doco/options.png)
+
+Note that the configuration options are stored in the [project].lps file, so are not committed
+to version control (or should not be).
+
+#### Test Project
+
+Often / usually, an application will have a dedicated test project, instead of building the tests 
+into the application being developed. Choose the project (.lpi) for the project, and then this 
+project will be compiled and executed rather instead of the current project.
+
+Notes:
+
+* If you provide an alternative project, you can specify to auto-save editor files before running the tests (because unsaved code won't be tested). 
+* The selected test project will need to compile using lazbuild for this option. This can be tricky with multi-platforms etc. 
+
+#### Additional Execution Parameters
+
+Additional parameters passed directly to the test application. 
+These can be used for:
+
+* additional parameters around start up mode, or local 
+* configuration options for folders etc so testing resources can be found
+* passwords for testing protected resources
+
+#### Time to wait
+
+The tests are run in a background process. When the tests are stopped, 
+the controller waits for the currently running test to complete. If 
+the test takes longer than this specified time, then the process will 
+be terminated, and no clean up will happen.
 
 # Installing the IDETester
 
 1. Get the code from the git repository https://github.com/grahamegrieve/lazarus-ide-tester
 1. Install into the Lazarus IDE
   1. Open the package /package/idetester.lpk, and compile it 
-  2. Open the package /ide/idetester_dsgn.lpk. Don't compile it 
-  3. Choose Package.. install packages and then install idetester_dsgn from the list of uninstalled packages
+  2. Open the package /ide/idetester_dsgn.lpk. Don't compile it
+  3. Choose Package.. install packages and then install idetester_dsgn from the list of uninstalled packages. In some versions of lazarus(?) if it is not displayed as an option, you need to compile it manually first
 
 # Running Test Cases
 
@@ -93,25 +126,29 @@ Summary:
 * Add the idetester package as a dependency. 
 * in the dpr, add idetester_runtime to the units list, and make the main clause of the project:
 
-      program my_test_example;
+```pascal
+program my_test_example;
 
-      uses
-        // add your test units here 
-        idetester_runtime;
+uses
+  // add your test units here 
+  idetester_runtime;
 
-      begin
-        RunIDETests
-      end.                                      
+begin
+  RunIDETests
+end.                                      
+```      
 
 * note that if the application is a console app (windows), then you can call RunIDETestsCmdLine instead
 * Press "load tests" in the test view, and then run your tests 
 
 Note that you can make running the IDE tests to be one of the options for running your program:
 
-      if IsRunningIDETests then
-        RunIDETests
-      else
-        // do something else
+```pascal
+if IsRunningIDETests then
+  RunIDETests
+else
+  // do something else
+```
 
 Note that on windows, your project does have to be a console application, whatever else it is/does
 
@@ -128,25 +165,27 @@ To do this:
 * Add the idetester package as a dependency. 
 * in the dpr, add idetester_form to the units list, and make the main clause of the project:
 
-    program idetester_example;
+```pascal
+program idetester_example;
 
-    uses
-      Interfaces, // this includes the LCL widgetset
-      // add your test units here 
-      idetester_form;
+uses
+  Interfaces, // this includes the LCL widgetset
+  // add your test units here 
+  idetester_form;
 
-    begin
-      Application.Scaled:=True;
-      Application.Initialize;
-      Application.CreateForm(TIdeTesterForm, IdeTesterForm);
-      Application.Title := 'FPCUnit test runner';
-      Application.Run;
-      Application.Free;
-    end.               
+begin
+  Application.Scaled:=True;
+  Application.Initialize;
+  Application.CreateForm(TIdeTesterForm, IdeTesterForm);
+  Application.Title := 'FPCUnit test runner';
+  Application.Run;
+  Application.Free;
+end.               
+```
 
 ## Use the standalone tester 
 
-* You can also us a ConsoleRunner provided as part of IDETester
+* You can also use a ConsoleRunner (idetester_console.pas) provided as part of IDETester
 * This isn't much different from the built in FPC Console test runner, but gives you more flexibility for CI integration
 * use the class in the idetester_console unit
 
