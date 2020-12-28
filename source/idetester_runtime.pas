@@ -296,6 +296,10 @@ begin
             tr.AddToSkipList(st as TTestCase);
         end;
       test.Run(tr);
+      if tr.NumberOfErrors + tr.NumberOfFailures > 0 then
+        result := 1
+      else
+        result := 0;
     finally
       tr.free;
     end;
