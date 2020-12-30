@@ -36,6 +36,7 @@ type
   TTestEngineIDE = class (TTestEngineExternal)
   private
     FDebuggingSession : TTestEngineIDESession;
+    FIDEIsDebugging : boolean;
   protected
     function runProgram(session : TTestEngineExternalSession; params : TStringList) : TProcess; override;
     function autoLoad : boolean; override;
@@ -44,10 +45,14 @@ type
   public
     function prepareToRunTests : TTestSession; override;
     function OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
+    function startRun(Sender: TObject; var Handled: boolean): TModalResult;
     procedure endRun(Sender: TObject);
-    function hasTestProject: boolean; override;
+    function canTestProject: boolean; override;
+    function hasTestProject: boolean;
     procedure openSource(test : TTestNode); override;
     function canDebug : boolean; override;
+    function canStart : boolean; override;
+    function canStop : boolean; override;
     function setUpDebug(session : TTestSession; node : TTestNode) : boolean; override;
   end;
 
@@ -212,10 +217,10 @@ begin
   begin
     if sess.FExeName = '' then
     begin
-      setStatus(Format(rs_IdeTester_Msg_Compiling, [LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']]));
+      setStatusMessage(Format(rs_IdeTester_Msg_Compiling, [LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']]));
       if not sess.compile then
         exit;
-      setStatus(rs_IdeTester_Msg_Loading);
+      setStatusMessage(rs_IdeTester_Msg_Loading);
     end;
     result := TProcess.create(nil);
     result.Executable := sess.FExeName;
@@ -240,14 +245,16 @@ end;
 procedure TTestEngineIDE.FinishTests;
 begin
   FDebuggingSession := nil;
+  while FIDEIsDebugging do
+    sleep(50);
 end;
 
 function TTestEngineIDE.prepareToRunTests: TTestSession;
 begin
   Result := TTestEngineIDESession.create;
-  setStatus(format(rs_IdeTester_Msg_Compiling, [LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']]));
+  setStatusMessage(format(rs_IdeTester_Msg_Compiling, [LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject']]));
   (result as TTestEngineIDESession).compile;
-  setStatus(rs_IdeTester_Msg_Loading);
+  setStatusMessage(rs_IdeTester_Msg_Loading);
 end;
 
 function TTestEngineIDE.OpenProject(Sender: TObject; AProject: TLazProject): TModalResult;
@@ -257,15 +264,34 @@ begin
   result := mrOk;
 end;
 
+function TTestEngineIDE.startRun(Sender: TObject; var Handled: boolean): TModalResult;
+begin
+  FIDEIsDebugging := true;
+  OnUpdateStatus(self);
+  Handled := false;
+  result := mrOk;
+end;
+
 procedure TTestEngineIDE.endRun(Sender: TObject);
 begin
-  if (FDebuggingSession <> nil) and (FDebuggingSession.Process <> nil) then
-    FDebuggingSession.Process.active := false;
+  if FIDEIsDebugging then
+  begin
+    FIDEIsDebugging := false;
+    if (FDebuggingSession <> nil) and (FDebuggingSession.Process <> nil) then
+      FDebuggingSession.Process.active := false
+    else
+      OnUpdateStatus(self);
+  end;
+end;
+
+function TTestEngineIDE.canTestProject: boolean;
+begin
+  Result := true;
 end;
 
 function TTestEngineIDE.hasTestProject: boolean;
 begin
-  Result := true;
+  result := (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and (LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject'] <> '');
 end;
 
 function firstLineMention(src : String; clss, test : String) : integer;
@@ -331,6 +357,16 @@ end;
 function TTestEngineIDE.canDebug: boolean;
 begin
   result := true;
+end;
+
+function TTestEngineIDE.canStart: boolean;
+begin
+  Result := not FIDEIsDebugging or hasTestProject;
+end;
+
+function TTestEngineIDE.canStop: boolean;
+begin
+  Result := not FIDEIsDebugging;
 end;
 
 function TTestEngineIDE.setUpDebug(session: TTestSession; node: TTestNode) : boolean;

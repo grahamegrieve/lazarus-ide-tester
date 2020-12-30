@@ -296,6 +296,10 @@ begin
             tr.AddToSkipList(st as TTestCase);
         end;
       test.Run(tr);
+      if tr.NumberOfErrors + tr.NumberOfFailures > 0 then
+        result := 1
+      else
+        result := 0;
     finally
       tr.free;
     end;
@@ -395,10 +399,7 @@ begin
   if client = nil then
     writeln('$#$#'+msg)
   else
-  begin
-    writeln('Send to IPC '+client.ServerID+':'+msg);
     client.SendStringMessage(msg);
-  end;
 end;
 
 { TTestInfo }
