@@ -71,8 +71,14 @@ type
     procedure EndRun(test: TTestNode); override;
   end;
 
+  TViewMode = (vmAll, vmFlat, vmIssues, vmNotRun);
+
   { TIdeTesterForm }
   TIdeTesterForm = class(TForm)
+    actTestViewFlat: TAction;
+    actTestViewIssues: TAction;
+    actTestViewUnrun: TAction;
+    actTestViewAll: TAction;
     actTestDebugSelected: TAction;
     actTestConfigure: TAction;
     actTestReload: TAction;
@@ -87,13 +93,19 @@ type
     ilOutcomes: TImageList;
     lblStatus: TLabel;
     MenuItem4: TMenuItem;
+    MenuItem5: TMenuItem;
+    MenuItem6: TMenuItem;
+    MenuItem7: TMenuItem;
+    MenuItem8: TMenuItem;
     mnuDebug: TMenuItem;
     Panel2: TPanel;
+    pmView: TPopupMenu;
     Timer1: TTimer;
     tbBtnReload: TToolButton;
     tbBtnReloadSep: TToolButton;
     tbBtnConfigure: TToolButton;
     tbBtnDebug: TToolButton;
+    btnView: TToolButton;
     tvTests: TLazVirtualStringTree;
     MenuItem3: TMenuItem;
     MenuItem1: TMenuItem;
@@ -121,6 +133,10 @@ type
     procedure actTestUnselectAllExecute(Sender: TObject);
     procedure actTestRunCheckedExecute(Sender: TObject);
     procedure actTestRunSelectedExecute(Sender: TObject);
+    procedure actTestViewAllExecute(Sender: TObject);
+    procedure actTestViewFlatExecute(Sender: TObject);
+    procedure actTestViewIssuesExecute(Sender: TObject);
+    procedure actTestViewUnrunExecute(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -140,6 +156,7 @@ type
     FEngine : TTestEngine;
     FStore : TTestSettingsProvider;
 
+    FViewMode : TViewMode;
     FTestInfo : TTestNodeList;
     FRunningTest : TTestNode;
     FTestsTotal, FTestsCount, FFailCount, FErrorCount : cardinal;
@@ -163,8 +180,11 @@ type
     // -- init ----
     procedure doReinitialise(sender : TObject);
     procedure doEngineUpdateStatus(sender : TObject);
-    procedure LoadTree;
-    function nodeFactory(parent : TTestNode) : TTestNode;
+    procedure LoadTree(full : boolean);
+    function InView(test : TTestNode): boolean;
+    function parentForTest(test : TTestNode): PVirtualNode;
+    procedure AddNodeToTree(test: TTestNode);
+    procedure buildTreeView;
     procedure refreshNode(test : TTestNode);
     procedure loadState;
     procedure saveState;
@@ -177,7 +197,7 @@ type
     procedure doEngineStatusMessage(sender : TObject; msg : String);
     procedure setDoExecute(node: TTestNode);
     procedure setDoExecuteParent(node: TTestNode);
-    procedure setActionStatus(tc, fc : integer);
+    procedure setActionStatus(tc, fc, cc : integer);
     procedure StartTestRun(debug : boolean);
     procedure DoExecuteTests; // in alternative thread
     procedure FinishTestRun;
@@ -284,6 +304,10 @@ begin
   actTestRunFailed.Caption := rs_IdeTester_Caption_RunFailed;
   actTestRunChecked.Caption := rs_IdeTester_Caption_RunChecked;
   actTestRunSelected.Caption := rs_IdeTester_Caption_RunSelected_NODE;
+  actTestViewFlat.Caption := rs_IdeTester_Caption_ViewFlat;
+  actTestViewIssues.Caption := rs_IdeTester_Caption_ViewIssues;
+  actTestViewUnrun.Caption := rs_IdeTester_Caption_ViewUnrun;
+  actTestViewAll.Caption := rs_IdeTester_Caption_ViewAll;
 
   actTestDebugSelected.Hint := rs_IdeTester_Hint_DebugSelected;
   actTestConfigure.Hint := rs_IdeTester_Hint_Configure;
@@ -294,6 +318,10 @@ begin
   actTestRunFailed.Hint := rs_IdeTester_Hint_RunFailed;
   actTestRunChecked.Hint := rs_IdeTester_Hint_RunChecked;
   actTestRunSelected.Hint := rs_IdeTester_Hint_RunSelected;
+  actTestViewFlat.Hint := rs_IdeTester_Hint_ViewFlat;
+  actTestViewIssues.Hint := rs_IdeTester_Hint_ViewIssues;
+  actTestViewUnrun.Hint := rs_IdeTester_Hint_ViewUnrun;
+  actTestViewAll.Hint := rs_IdeTester_Hint_ViewAll;
 end;
 
 procedure TIdeTesterForm.FormDestroy(Sender: TObject);
@@ -322,10 +350,7 @@ begin
 
     engine.listener := TTesterFormListener.create(self);
     if not engine.doesReload then
-    begin
       tbBtnReload.visible := false;
-      tbBtnReloadSep.visible := false;
-    end;
     if not (engine.canTerminate or engine.canParameters or engine.canTestProject) then
     begin
       tbBtnConfigure.visible := false;
@@ -346,7 +371,7 @@ begin
   end;
 end;
 
-procedure TIdeTesterForm.setActionStatus(tc, fc : integer);
+procedure TIdeTesterForm.setActionStatus(tc, fc, cc : integer);
 var
   hasTests : boolean;
 begin
@@ -371,7 +396,7 @@ begin
     actTestReset.Enabled := not FRunning and hasTests;
     actTestStop.Enabled := FRunning and engine.canStop;
     actTestRunFailed.Enabled := not FRunning and (fc > 0) and engine.canStart;
-    actTestRunChecked.Enabled := not FRunning and hasTests and engine.canStart;
+    actTestRunChecked.Enabled := not FRunning and (cc > 0) and hasTests and engine.canStart;
     actTestRunSelected.Enabled := not FRunning and hasTests and engine.canStart;
     actTestDebugSelected.Enabled := engine.canDebug and not FRunning and hasTests and (store.read(tsmConfig, 'testproject', '') = '') and engine.canStart;
   end;
@@ -457,7 +482,7 @@ begin
   end;
   lblStatus.caption := s;
 
-  setActionStatus(tc, fc + ec);
+  setActionStatus(tc, fc + ec, cc);
 end;
 
 procedure TIdeTesterForm.doReinitialise(sender: TObject);
@@ -473,7 +498,7 @@ end;
 procedure TIdeTesterForm.doEngineUpdateStatus(sender: TObject);
 begin
   if FRunning then
-    setActionStatus(FTestsCount, 0)
+    setActionStatus(FTestsCount, 0, 0)
   else
     UpdateTotals;
 end;
@@ -485,26 +510,10 @@ end;
 
 procedure TIdeTesterForm.tvTestsGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: String);
 begin
-  CellText := tn(node).description;
-end;
-
-function TIdeTesterForm.nodeFactory(parent : TTestNode) : TTestNode;
-var
-  p : PTestNodeData;
-begin
-  result := TTestNode.create(parent);
-  FTestInfo.add(result);
-
-  if (parent <> nil) then
-    result.Node := tvTests.AddChild(parent.Node)
+  if FViewMode = vmFlat then
+    CellText := tn(node).sortName
   else
-    result.Node := tvTests.AddChild(nil);
-
-  p := tvTests.GetNodeData(result.Node);
-  p.Node := result;
-  result.Node.CheckType := ctTriStateCheckBox;
-  result.Node.CheckState := csUncheckedNormal;
-  result.OnUpdate := refreshNode;
+    CellText := tn(node).description;
 end;
 
 procedure TIdeTesterForm.refreshNode(test: TTestNode);
@@ -512,21 +521,150 @@ begin
   tvTests.InvalidateNode(test.node);
 end;
 
-procedure TIdeTesterForm.LoadTree;
+procedure TIdeTesterForm.LoadTree(full : boolean);
 begin
-  tvTests.Clear;
-  FTestInfo.Clear;
-  tvTests.Refresh;
-  engine.loadAllTests(nodeFactory, not FLoading);
-  if FTestInfo.Count > 0 then
+  if (full) then
+  begin
+    FTestInfo.Clear;
+    engine.loadAllTests(FTestInfo, not FLoading);
+  end;
+  buildTreeView;
+  if tvTests.ChildCount[nil] > 0 then
   begin
     tvTests.Selected[FTestInfo[0].node] := true;
-    tvTests.Expanded[FTestInfo[0].node] := true;
+    if (FViewMode in [vmAll, vmNotRun]) then
+      tvTests.Expanded[FTestInfo[0].node] := true
+    else if (FViewMode in [vmIssues]) then
+      tvTests.FullExpand;
   end
   else
   begin
     tvTestsRemoveFromSelection(nil, nil);
   end;
+end;
+
+function hasLeafChildren(test : TTestNode) : boolean;
+var
+  child : TTestNode;
+begin
+  if not test.hasChildren then
+    result := false
+  else
+  begin
+    result := false;
+    for child in test.children do
+      if not child.hasChildren then
+        exit(true);
+  end;
+end;
+
+function hasFailedDescendents(test : TTestNode) : boolean;
+var
+  child : TTestNode;
+begin
+  if test.outcome in [toFail, toError, toHalt] then
+    result := true
+  else
+  begin
+    result := false;
+    for child in test.children do
+      if hasFailedDescendents(child) then
+        exit(true);
+  end;
+end;
+
+function hasUnrunDescendents(test : TTestNode) : boolean;
+var
+  child : TTestNode;
+begin
+  if test.outcome in [toNotRun] then
+    result := true
+  else
+  begin
+    result := false;
+    for child in test.children do
+      if hasUnrunDescendents(child) then
+        exit(true);
+  end;
+end;
+
+function TIdeTesterForm.InView(test : TTestNode): boolean;
+begin
+  case FViewMode of
+    vmAll : result := true;
+    vmFlat : result := hasLeafChildren(test);
+    vmIssues : result := hasFailedDescendents(test);
+    vmNotRun : result := hasUnrunDescendents(test);
+  else
+    result := true;
+  end;
+end;
+
+function TIdeTesterForm.parentForTest(test : TTestNode): PVirtualNode;
+var
+  parent : TTestNode;
+begin
+  result := nil;
+  parent := test.parent;
+  while (parent <> nil) do
+  begin
+    if (parent.node <> nil) then
+      exit(parent.node);
+    parent := parent.parent;
+  end;
+end;
+
+procedure TIdeTesterForm.AddNodeToTree(test : TTestNode);
+var
+  p : PTestNodeData;
+begin
+  test.Node := tvTests.AddChild(parentForTest(test));
+  p := tvTests.GetNodeData(test.Node);
+  p.Node := test;
+  test.Node.CheckType := ctTriStateCheckBox;
+  test.OnUpdate := refreshNode;
+end;
+
+procedure TIdeTesterForm.buildTreeView;
+var
+  test, child : TTestNode;
+  ts : TStringList;
+  i : integer;
+begin
+  // remove everything from the tree
+  for test in FTestInfo do
+  begin
+    test.node := nil;
+    test.OnUpdate := nil;
+  end;
+  tvTests.BeginUpdate;
+  tvTests.Clear;
+  if FViewMode = vmFlat then
+  begin
+    ts := TStringList.create;
+    try
+      for test in FTestInfo do
+        if InView(test) then
+          ts.AddObject(test.sortName, test);
+      ts.sort;
+      for i := 0 to ts.count - 1 do
+      begin
+        test := ts.objects[i] as TTestNode;
+        AddNodeToTree(test);
+        for child in test.children do
+          AddNodeToTree(child);
+      end;
+    finally
+      ts.free;
+    end;
+  end
+  else
+  begin
+    for test in FTestInfo do
+      if InView(test) then
+        AddNodeToTree(test);
+  end;
+  tvTests.EndUpdate;
 end;
 
 // --- Test Selection Management -----------------------------------------------
@@ -552,7 +690,17 @@ begin
 end;
 
 procedure TIdeTesterForm.tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
+var
+  test : TTestNode;
 begin
+  test := tn(node);
+  case node.CheckState of
+    csUncheckedNormal : test.checkState := tcsUnchecked;
+    csCheckedNormal : test.checkState := tcsChecked;
+    csMixedNormal : test.checkState := tcsMixed;
+  else
+    ;
+  end;
   UpdateTotals;
 end;
 
@@ -734,6 +882,34 @@ begin
     FThread := TTestThread.create(self);
     FThread.FreeOnTerminate := true;
   end;
+end;
+
+procedure TIdeTesterForm.actTestViewAllExecute(Sender: TObject);
+begin
+  FViewMode := vmAll;
+  LoadTree(false);
+  btnView.ImageIndex := actTestViewAll.ImageIndex;
+end;
+
+procedure TIdeTesterForm.actTestViewFlatExecute(Sender: TObject);
+begin
+  FViewMode := vmFlat;
+  LoadTree(false);
+  btnView.ImageIndex := actTestViewFlat.ImageIndex;
+end;
+
+procedure TIdeTesterForm.actTestViewIssuesExecute(Sender: TObject);
+begin
+  FViewMode := vmIssues;
+  LoadTree(false);
+  btnView.ImageIndex := actTestViewIssues.ImageIndex;
+end;
+
+procedure TIdeTesterForm.actTestViewUnrunExecute(Sender: TObject);
+begin
+  FViewMode := vmNotRun;
+  LoadTree(false);
+  btnView.ImageIndex := actTestViewUnrun.ImageIndex;
 end;
 
 procedure TIdeTesterForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -988,7 +1164,7 @@ begin
   FFailCount := 0;
   FErrorCount := 0;
   pbBar.Invalidate;
-  setActionStatus(1, 0);
+  setActionStatus(1, 0, 0);
   timer1.Enabled := true;
 
   FSession := engine.prepareToRunTests;
@@ -1025,7 +1201,7 @@ end;
 
 procedure TIdeTesterForm.actTestReloadExecute(Sender: TObject);
 begin
-  LoadTree;
+  LoadTree(true);
   LoadState;
   UpdateTotals;
 end;

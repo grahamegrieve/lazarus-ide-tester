@@ -99,8 +99,8 @@ type
     procedure processRun(line : String);
 
     procedure clearTests;
-    Function registerTestNode(factory : TNodeFactory; parent : TTestNode; test : TTesterTestEntry) : TTestNode;
-    procedure BuildTree(factory : TNodeFactory; rootTest: TTestNode; suite: TTesterTestEntry);
+    Function registerTestNode(testList : TTestNodeList; parent : TTestNode; test : TTesterTestEntry) : TTestNode;
+    procedure BuildTree(testList : TTestNodeList; rootTest: TTestNode; suite: TTesterTestEntry);
 
     function findTestInNode(id : String; node : TTestNode) : TTestNode;
     function findNode(id : String) : TTestNode;
@@ -115,7 +115,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    procedure loadAllTests(factory : TNodeFactory; manual : boolean); override;
+    procedure loadAllTests(testList : TTestNodeList; manual : boolean); override;
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
@@ -404,7 +404,7 @@ begin
 
 end;
 
-procedure TTestEngineExternal.loadAllTests(factory: TNodeFactory; manual : boolean);
+procedure TTestEngineExternal.loadAllTests(testList : TTestNodeList; manual : boolean);
 var
   params : TStringList;
   process : TProcess;
@@ -429,8 +429,8 @@ begin
             FIPCServer.listen(process);
             if FTests <> nil then
             begin
-              node := registerTestNode(factory, nil, FTests);
-              BuildTree(factory, node, FTests);
+              node := registerTestNode(testList, nil, FTests);
+              BuildTree(testList, node, FTests);
             end
             else
               ShowMessage(format(rs_IdeTester_Err_No_Load_Tests, [helpUrl]));
@@ -447,11 +447,12 @@ begin
   end;
 end;
 
-function TTestEngineExternal.registerTestNode(factory : TNodeFactory; parent: TTestNode; test: TTesterTestEntry): TTestNode;
+function TTestEngineExternal.registerTestNode(testList : TTestNodeList; parent: TTestNode; test: TTesterTestEntry): TTestNode;
 var
   nid : TTestNodeId;
 begin
-  result := factory(parent);
+  result := TTestNode.create(parent);
+  testList.add(result);
   if (parent <> nil) then
     parent.Children.add(result);
   nid := TTestNodeId.create;
@@ -467,7 +468,7 @@ begin
   result.outcome := toNotRun;
 end;
 
-procedure TTestEngineExternal.BuildTree(factory : TNodeFactory; rootTest: TTestNode; suite: TTesterTestEntry);
+procedure TTestEngineExternal.BuildTree(testList : TTestNodeList; rootTest: TTestNode; suite: TTesterTestEntry);
 var
   test: TTestNode;
   entry : TTesterTestEntry;
@@ -475,8 +476,8 @@ begin
   if suite.FChildren <> nil then
     for entry in suite.FChildren do
     begin
-      test := registerTestNode(factory, rootTest, entry);
-      BuildTree(factory, test, entry);
+      test := registerTestNode(testList, rootTest, entry);
+      BuildTree(testList, test, entry);
   end;
 end;
 

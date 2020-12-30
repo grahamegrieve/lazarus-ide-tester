@@ -45,10 +45,10 @@ type
 
   TTestEngineDirect = class (TTestEngine)
   private
-    Function registerTestNode(factory : TNodeFactory; parent : TTestNode; test : TTest) : TTestNode;
-    procedure BuildTree(factory : TNodeFactory; rootTest: TTestNode; aSuite: TTestSuite);
+    Function registerTestNode(testList : TTestNodeList; parent : TTestNode; test : TTest) : TTestNode;
+    procedure BuildTree(testList : TTestNodeList; rootTest: TTestNode; aSuite: TTestSuite);
   public
-    procedure loadAllTests(factory : TNodeFactory; manual : boolean); override;
+    procedure loadAllTests(testList : TTestNodeList; manual : boolean); override;
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
     function doesReload : boolean; override;
@@ -184,19 +184,20 @@ end;
 
 { TTestEngineDirect }
 
-procedure TTestEngineDirect.loadAllTests(factory : TNodeFactory; manual : boolean);
+procedure TTestEngineDirect.loadAllTests(testList : TTestNodeList; manual : boolean);
 var
   test : TTestSuite;
   node : TTestNode;
 begin
   test := GetTestRegistry;
-  node := registerTestNode(factory, nil, test);
-  BuildTree(factory, node, test);
+  node := registerTestNode(testList, nil, test);
+  BuildTree(testList, node, test);
 end;
 
-function TTestEngineDirect.registerTestNode(factory : TNodeFactory; parent: TTestNode; test: TTest): TTestNode;
+function TTestEngineDirect.registerTestNode(testList : TTestNodeList; parent: TTestNode; test: TTest): TTestNode;
 begin
-  result := factory(parent);
+  result := TTestNode.create(parent);
+  testlist.add(result);
   if (parent <> nil) then
     parent.Children.add(result);
   result.Data := test;
@@ -207,7 +208,7 @@ begin
   result.outcome := toNotRun;
 end;
 
-procedure TTestEngineDirect.BuildTree(factory : TNodeFactory; rootTest: TTestNode; aSuite: TTestSuite);
+procedure TTestEngineDirect.BuildTree(testList : TTestNodeList; rootTest: TTestNode; aSuite: TTestSuite);
 var
   test: TTestNode;
   i: integer;
@@ -217,12 +218,12 @@ begin
     if (ASuite.Test[i].TestName = '') and (ASuite.ChildTestCount = 1) then
       test := rootTest
     else
-      test := registerTestNode(factory, rootTest, ASuite.Test[i]);
+      test := registerTestNode(testList, rootTest, ASuite.Test[i]);
 
     if ASuite.Test[i] is TTestSuite then
-      BuildTree(factory, test, TTestSuite(ASuite.Test[i]))
+      BuildTree(testList, test, TTestSuite(ASuite.Test[i]))
     else if TObject(ASuite.Test[i]).InheritsFrom(TTestDecorator) then
-      BuildTree(factory, test, TTestSuite(TTestDecorator(ASuite.Test[i]).Test));
+      BuildTree(testList, test, TTestSuite(TTestDecorator(ASuite.Test[i]).Test));
   end;
 end;
 

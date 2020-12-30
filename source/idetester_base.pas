@@ -33,17 +33,18 @@ type
     FSourceUnitError: string;
     FOutcome : TTestOutcome;
     FStartTime : UInt64;
-    FNode : PVirtualNode;
+    FCheckState : TTestCheckState;
+    FNodePtr : PVirtualNode;
     FData : TObject;
 
     FExecute : boolean;
     FOnUpdate : TTestNodeUpdateEvent;
     FTestClassName: String;
     FTestName: String;
-    function GetCheckState: TTestCheckState;
     function GetHasChildren: boolean;
     procedure SetCheckState(AValue: TTestCheckState);
     procedure SetDuration(AValue: Int64);
+    procedure SetNodePtr(AValue: PVirtualNode);
     procedure SetOutcome(AValue: TTestOutcome);
 
     function testCount : cardinal;
@@ -53,8 +54,8 @@ type
 
     property Data : TObject read FData write FData;
     property ownsData : boolean read FOwnsData write FOwnsData;
-    property node : PVirtualNode read FNode write FNode;
-    property checkState : TTestCheckState read GetCheckState write SetCheckState;
+    property node : PVirtualNode read FNodePtr write SetNodePtr;
+    property checkState : TTestCheckState read FCheckState write SetCheckState;
     property outcome : TTestOutcome read FOutcome write SetOutcome;
     property execute : Boolean read FExecute write FExecute;
     property parent : TTestNode read FParent;
@@ -72,6 +73,7 @@ type
     property LineNumber: longint read FLineNumber write FLineNumber;
 
     function description : String;
+    function sortName : string;
     function descriptionFull : String;
     function details(indent : String) : String;
     procedure start;
@@ -131,7 +133,6 @@ type
     procedure skipTest(node : TTestNode); virtual; abstract; // set up a list of tests to skip
   end;
 
-  TNodeFactory = function (parent : TTestNode) : TTestNode of object;
   TLogEvent = procedure (sender : TObject; msg : String) of object;
 
   { TTestEngine }
@@ -152,7 +153,7 @@ type
     property OnStatusMessage: TLogEvent read FOnStatusMessage write FOnStatusMessage;
     property OnUpdateStatus: TNotifyEvent read FOnUpdateStatus write FOnUpdateStatus;
 
-    procedure loadAllTests(factory : TNodeFactory; manual : boolean); virtual; abstract; // get a list of tests
+    procedure loadAllTests(testList : TTestNodeList; manual : boolean); virtual; abstract; // get a list of tests
     function threadMode : TTestEngineThreadMode; virtual; abstract;
 
     function canTerminate : boolean; virtual; abstract; // true if it's ok to call terminateTests
@@ -253,7 +254,8 @@ end;
 procedure TTestNode.SetOutcome(AValue: TTestOutcome);
 begin
   FOutcome := AValue;
-  FOnUpdate(self);
+  if assigned(FOnUpdate) then
+    FOnUpdate(self);
 end;
 
 function TTestNode.testCount: cardinal;
@@ -288,6 +290,14 @@ begin
   end;
   if ExceptionMessage <> '' then
     result := result +': '+ExceptionMessage;
+end;
+
+function TTestNode.sortName: string;
+begin
+  if testClassName <> '' then
+    result := testClassName
+  else
+    result := testName;
 end;
 
 function TTestNode.descriptionFull: String;
@@ -359,21 +369,17 @@ end;
 
 procedure TTestNode.SetCheckState(AValue: TTestCheckState);
 begin
-  case AValue of
-    tcsUnchecked : FNode.CheckState := csUncheckedNormal;
-    tcsChecked : FNode.CheckState := csCheckedNormal;
-    tcsMixed : FNode.CheckState := csMixedNormal;
+  FCheckState := aValue;
+  if FNodePtr <> nil then
+  begin
+    case FCheckState of
+      tcsUnchecked : FNodePtr.CheckState := csUncheckedNormal;
+      tcsChecked : FNodePtr.CheckState := csCheckedNormal;
+      tcsMixed : FNodePtr.CheckState := csMixedNormal;
+    end;
   end;
-  FOnUpdate(self);
-end;
-
-function TTestNode.GetCheckState: TTestCheckState;
-begin
-  case FNode.CheckState of
-    csUncheckedNormal, csUncheckedPressed : result := tcsUnchecked;
-    csCheckedNormal, csCheckedPressed : result := tcsChecked;
-    csMixedNormal, csMixedPressed : result := tcsMixed;
-  end;
+  if assigned(FOnUpdate) then
+    FOnUpdate(self);
 end;
 
 function TTestNode.GetHasChildren: boolean;
@@ -385,6 +391,19 @@ procedure TTestNode.SetDuration(AValue: Int64);
 begin
   FDuration := AValue;
   // don't do this - we're probably in the test thread, and update will be called later...   FOnUpdate(self);
+end;
+
+procedure TTestNode.SetNodePtr(AValue: PVirtualNode);
+begin
+  FNodePtr:=AValue;
+  if FNodePtr <> nil then
+  begin
+    case FCheckState of
+      tcsUnchecked : FNodePtr.CheckState := csUncheckedNormal;
+      tcsChecked : FNodePtr.CheckState := csCheckedNormal;
+      tcsMixed : FNodePtr.CheckState := csMixedNormal;
+    end;
+  end;
 end;
 
 end.

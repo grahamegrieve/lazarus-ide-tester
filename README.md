@@ -22,13 +22,6 @@ Discussion on use at https://forum.lazarus.freepascal.org/index.php/board,13.0.h
 
 Issue report and PRs to https://github.com/grahamegrieve/lazarus-ide-tester
 
-# Todo
-
-Things still to do:
-
-* add additional views (e.g. only show non-passing tests, flatten heirarchy)
-
-
 # User Documentation
 
 The IDETester appears as a view on the View menu in Lazarus:
@@ -46,6 +39,7 @@ The view has the following features
 ### Buttons:
 
 * Reload: Compile the current project, and load all tests from it (not visible when testing directly - see below)
+* View: Choose how to view the test heirarchy (one of: all tests, all tests, but no heirarchy, just failing tests, just unrun tests)
 * Run Selected Test(s) - run the currently selected test, and any children
 * Run Checked Tests - Run the set of tests that are checked
 * Stop Test Run - Stop the current test run 

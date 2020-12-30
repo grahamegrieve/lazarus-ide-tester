@@ -86,6 +86,11 @@ resourcestring
   rs_IdeTester_Caption_Stop = 'Stop Running Tests';
   rs_IdeTester_Caption_RunFailed = 'Run Failed Tests';
   rs_IdeTester_Caption_RunChecked = 'Run All Checked Tests';
+  rs_IdeTester_Caption_ViewFlat = '&Without Heirarchy';
+  rs_IdeTester_Caption_ViewIssues = '&Failed';
+  rs_IdeTester_Caption_ViewUnrun = '&Not yet run';
+  rs_IdeTester_Caption_ViewAll = 'Full &Heirarchy';
+
 
   rs_IdeTester_Hint_DebugSelected = 'Debug Selected';
   rs_IdeTester_Hint_Configure = 'Set Configuration Options';
@@ -98,6 +103,10 @@ resourcestring
   rs_IdeTester_Hint_RunFailed = 'Re-run all failed tests (including errors)';
   rs_IdeTester_Hint_RunChecked = 'Run All Checked Tests';
   rs_IdeTester_Hint_RunSelected = 'Run Selected test + children';
+  rs_IdeTester_Hint_ViewFlat = 'View all tests without heirarchy';
+  rs_IdeTester_Hint_ViewIssues = 'View only tests that failed';
+  rs_IdeTester_Hint_ViewUnrun = 'View Tests not yet run';
+  rs_IdeTester_Hint_ViewAll = 'View the Full Heirarchy of tests';
 
   rs_IdeTester_ProjectType_None = 'None';
   rs_IdeTester_ProjectType_Program = 'Program';
