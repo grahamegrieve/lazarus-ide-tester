@@ -103,7 +103,7 @@ Summary:
         RunIDETests
       end.                                      
 
-* note that if the application is a console app (windows), then you can call RunIDETestsCmdLine instead
+* note that if the application has a console (linux + OSX, or not a gui app on windows), then you can call RunIDETestsCmdLine instead, which handles errors on the console
 * Press "load tests" in the test view, and then run your tests 
 
 Note that you can make running the IDE tests to be one of the options for running your program:
@@ -112,8 +112,6 @@ Note that you can make running the IDE tests to be one of the options for runnin
         RunIDETests
       else
         // do something else
-
-Note that on windows, your project does have to be a console application, whatever else it is/does
 
 Also, note that the github repo includes a project project/idetester_standalone that 
 can run the test cases in that project using a ```-test {exename}``` parameter
