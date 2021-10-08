@@ -39,17 +39,59 @@ POSSIBILITY OF SUCH DAMAGE.
 interface
 
 uses
-  Classes, SysUtils, custapp, dom, inifiles,
+  Classes, SysUtils, Contnrs, dateutils, custapp, dom, inifiles,
   fpcunit, testutils, testregistry, testdecorator,
   fpcunitreport, latextestreport, xmltestreport, plaintestreport;
 
 type
-  TFormat = (fPlain, fLatex, fXML, fPlainNoTiming);
+  TFormat = (fPlain, fLatex, fXML, fPlainNoTiming, fSimple);
 
 var
-  DefaultFormat : TFormat = fXML;
+  DefaultFormat : TFormat = fSimple;
 
 type
+
+  { TSuiteInfo }
+
+  TSuiteInfo = class
+  private
+    index : integer;
+    total : integer;
+    ignored : integer;
+    errors : integer;
+    fails : integer;
+    procedure add(info : TSuiteInfo);
+  public
+    constructor create(index : integer);
+  end;
+
+  { TSimpleResultsWriter }
+
+  TSimpleResultsWriter = class(TCustomResultsWriter)
+  private
+    FTestResultOptions : TTestResultOptions;
+    FDoc: TStringList;
+    FSuites : TObjectList;
+    FTempFailure: TTestFailure;
+    function TimeFormat(ATiming: TDateTime): String;
+  protected
+    procedure SetSkipAddressInfo(AValue: Boolean); override;
+    procedure SetSparse(AValue: Boolean); override;
+    procedure WriteTestHeader(ATest: TTest; ALevel: integer; ACount: integer); override;
+    procedure WriteTestFooter(ATest: TTest; ALevel: integer; ATiming: TDateTime); override;
+    procedure WriteSuiteHeader(ATestSuite: TTestSuite; ALevel: integer); override;
+    procedure WriteSuiteFooter(ATestSuite: TTestSuite; ALevel: integer; ATiming: TDateTime; ANumRuns: integer; ANumErrors: integer; ANumFailures: integer; ANumIgnores: integer); override;
+  public
+    constructor Create(aOwner: TComponent); override;
+    destructor  Destroy; override;
+    procedure WriteHeader; override;
+    procedure WriteResult(aResult: TTestResult); override;
+    procedure AddFailure(ATest: TTest; AFailure: TTestFailure); override;
+    procedure AddError(ATest: TTest; AError: TTestFailure); override;
+  end;
+
+
+
   { TTestRunner }
 
   TIdeTesterConsoleRunner = class(TCustomApplication)
@@ -101,6 +143,7 @@ Type
     FIgnored : Integer;
     FErrors : Integer;
     FQuiet : Boolean;
+    fcount : integer;
     FSuccess : Boolean;
     procedure WriteChar(c: char);
   public
@@ -120,6 +163,22 @@ Type
     Property Ignored : Integer Read FIgnored;
     Property Quiet : Boolean Read FQuiet;
   end;
+
+{ TSuiteInfo }
+
+procedure TSuiteInfo.add(info: TSuiteInfo);
+begin
+  total := total + info.total;
+  ignored := ignored + info.ignored;
+  errors := errors + info.errors;
+  fails := fails + info.fails;
+end;
+
+constructor TSuiteInfo.create(index: integer);
+begin
+  inherited create;
+  self.index := index;
+end;
 
 { TDecoratorTestSuite }
 
@@ -192,11 +251,18 @@ end;
 procedure TProgressWriter.StartTestSuite(ATestSuite: TTestSuite);
 begin
 // do nothing
+  inc(fcount);
 end;
 
 procedure TProgressWriter.EndTestSuite(ATestSuite: TTestSuite);
 begin
 // do nothing
+  dec(fcount);
+  if fCount = 0 then
+  begin
+    writeln('!');
+    writeln;
+  end;
 end;
 
 { TIdeTesterConsoleRunner }
@@ -205,6 +271,7 @@ constructor TIdeTesterConsoleRunner.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   StopOnException := True;
+  FFormat := DefaultFormat;
 end;
 
 destructor TIdeTesterConsoleRunner.Destroy;
@@ -295,6 +362,7 @@ begin
     fLatex:         Result := TLatexResultsWriter.Create(nil);
     fPlain:         Result := TPlainResultsWriter.Create(nil);
     fPlainNotiming: Result := TPlainResultsWriter.Create(nil);
+    fSimple:        Result := TSimpleResultsWriter.Create(nil);
   else
     begin
       Result := TXmlResultsWriter.Create(nil);
@@ -314,6 +382,179 @@ begin
   n := Doc.CreateElement('Title');
   n.AppendChild(Doc.CreateTextNode(Title));
   Doc.FirstChild.AppendChild(n);
+end;
+
+
+{TSimpleResultsWriter}
+
+constructor TSimpleResultsWriter.Create(aOwner: TComponent);
+begin
+  inherited Create(aOwner);
+  FDoc := TStringList.Create;
+  FSuites := TObjectList.create(true);
+  FTempFailure := nil;
+end;
+
+destructor  TSimpleResultsWriter.Destroy;
+begin
+  FDoc.Free;
+  FSuites.Free;
+  inherited Destroy;
+end;
+
+procedure TSimpleResultsWriter.WriteHeader;
+begin
+end;
+
+procedure TSimpleResultsWriter.WriteResult(aResult: TTestResult);
+var
+  f: text;
+begin
+  system.Assign(f, FileName);
+  rewrite(f);
+  writeln(f, FDoc.Text);
+  close(f);
+end;
+
+procedure TSimpleResultsWriter.AddFailure(ATest: TTest; AFailure: TTestFailure);
+begin
+  inherited AddFailure(ATest, AFailure);
+  FTempFailure := AFailure;
+  inc((FSuites[0] as TSuiteInfo).fails);
+end;
+
+procedure TSimpleResultsWriter.AddError(ATest: TTest; AError: TTestFailure);
+begin
+  inherited AddError(ATest, AError);
+  FTempFailure := AError;
+  inc((FSuites[0] as TSuiteInfo).errors);
+end;
+
+procedure TSimpleResultsWriter.WriteTestHeader(ATest: TTest; ALevel: integer; ACount: integer);
+begin
+  inherited;
+end;
+
+function presentLoc(loc : String) : String;
+var
+  p : TArray<String>;
+  u, l : String;
+  i : integer;
+begin
+  l := '?';
+  u := '?';
+  p := loc.Split([' ']);
+
+  for i := 0 to length(p) - 2 do
+    if p[i] = 'line' then
+      l := p[i+1];
+
+  for i := 0 to length(p) - 1 do
+    if p[i].endsWith('.pas') or p[i].endsWith('.inc') or p[i].endsWith('.dpr') or p[i].endsWith('.lpr') or p[i].endsWith('.pp') then
+      u := ExtractFileName(p[i]);
+
+  result := u+'#'+l;
+end;
+
+procedure TSimpleResultsWriter.WriteTestFooter(ATest: TTest; ALevel: integer; ATiming: TDateTime);
+Var
+  S : String;
+begin
+  inherited;
+  inc((FSuites[0] as TSuiteInfo).total);
+
+  S:='  ' + StringOfChar(' ',ALevel*2);
+  S:= S + ATest.TestName+' ';
+  if Not SkipTiming then
+    S := S + '['+FormatDateTime(TimeFormat(ATiming), ATiming) + '] ';
+
+  if not Assigned(FTempFailure) then
+    s := s + 'pass'
+  else if not FTempFailure.IsFailure then
+    s := s + 'error ' + FTempFailure.ExceptionClassName + '@'+ presentLoc(FTempFailure.LocationInfo)+': '+FTempFailure.ExceptionMessage
+  else if FTempFailure.IsIgnoredTest then
+    s := s + 'ignore'
+  else
+    s := s + 'fail @'+ presentLoc(FTempFailure.LocationInfo)+': '+FTempFailure.ExceptionMessage;
+
+  if Assigned(FTempFailure) or (not Sparse) then
+    FDoc.Add(S);
+
+  FTempFailure := nil;
+end;
+
+function TSimpleResultsWriter.TimeFormat(ATiming: TDateTime): String;
+
+Var
+  M : Int64;
+
+begin
+  Result:='ss.zzz';
+  M:=MinutesBetween(ATiming,0);
+  if M>60 then
+    Result:='hh:mm:'+Result
+  else if M>1 then
+   Result:='mm:'+Result;
+end;
+
+procedure TSimpleResultsWriter.SetSkipAddressInfo(AValue: Boolean);
+begin
+  inherited SetSkipAddressInfo(AValue);
+  if AValue then
+    Include(FTestResultOptions,ttoSkipAddress)
+  else
+    Exclude(FTestResultOptions,ttoSkipAddress);
+end;
+
+procedure TSimpleResultsWriter.SetSparse(AValue: Boolean);
+begin
+  inherited SetSparse(AValue);
+  if AValue then
+    FTestResultOptions:=FTestResultOptions+[ttoSkipExceptionMessage,ttoErrorsOnly]
+  else
+    FTestResultOptions:=FTestResultOptions-[ttoSkipExceptionMessage,ttoErrorsOnly];
+end;
+
+procedure TSimpleResultsWriter.WriteSuiteFooter(ATestSuite: TTestSuite; ALevel: integer; ATiming: TDateTime; ANumRuns: integer; ANumErrors: integer; ANumFailures: integer; ANumIgnores: integer);
+var
+  info : TSuiteInfo;
+  S: String;
+begin
+  inherited;
+  info := FSuites[0] as TSuiteInfo;
+
+  if Not SkipTiming then
+    s := ' ['+ FormatDateTime(TimeFormat(ATiming), ATiming)+'] ';
+  if info.errors + info.fails + info.ignored = 0 then
+    s := s + ': '+inttostr(info.total)+' ok'
+  else
+  begin
+    s := s + ': '+inttostr(info.total - (info.ignored + info.errors + info.fails))+' ok';
+    if info.ignored > 0 then
+      s := s + ', '+inttostr(info.ignored)+' ignored';
+    if info.errors > 0 then
+      s := s + ', '+inttostr(info.errors)+' errors';
+    if info.fails > 0 then
+      s := s + ', '+inttostr(info.fails)+' failed';
+  end;
+  if sparse and (info.errors + info.fails + info.ignored = 0) then
+    FDoc.delete(info.index)
+  else
+    FDoc[info.index] := FDoc[info.index]+S;
+
+  if FSuites.count > 1 then
+    (FSuites[1] as TSuiteInfo).add(info);
+  FSuites.delete(0);
+end;
+
+procedure TSimpleResultsWriter.WriteSuiteHeader(ATestSuite: TTestSuite; ALevel: integer);
+begin
+  inherited;
+  FSuites.insert(0, TSuiteInfo.create(FDoc.Count));
+  if (Alevel = 0) then
+    FDoc.Add('All Tests')
+  else
+    FDoc.Add(StringOfChar(' ',ALevel*2) + ATestSuite.TestName);
 end;
 
 end.
