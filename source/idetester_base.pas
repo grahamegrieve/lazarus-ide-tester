@@ -134,6 +134,7 @@ type
   end;
 
   TLogEvent = procedure (sender : TObject; msg : String) of object;
+  TOpenSourceMode = (osmNull, osmDefinition, osmError);
 
   { TTestEngine }
 
@@ -161,6 +162,7 @@ type
     function canStart : boolean; virtual; abstract;
     function canStop : boolean; virtual;
     function doesReload : boolean; virtual; abstract;
+    function doesSource : boolean; virtual;
     function canParameters : boolean; virtual;
     function canTestProject : boolean; virtual;
 
@@ -171,7 +173,7 @@ type
     procedure terminateTests(session: TTestSession); virtual; abstract; // terminate the tests without waiting for clean up. called from a different thread to runTest, which will still be in progress
     procedure finishTestRun(session : TTestSession); virtual; abstract; // clean up after a test run (must free session)
 
-    procedure openSource(test : TTestNode); virtual;
+    procedure openSource(test : TTestNode; mode : TOpenSourceMode); virtual;
   end;
 
 procedure readLocation(loc : String; out srcUnit : String; out line : integer);
@@ -212,6 +214,11 @@ begin
   result := true;
 end;
 
+function TTestEngine.doesSource: boolean;
+begin
+  result := false;
+end;
+
 function TTestEngine.canParameters: boolean;
 begin
   result := false;
@@ -227,7 +234,7 @@ begin
   result := false;
 end;
 
-procedure TTestEngine.openSource(test: TTestNode);
+procedure TTestEngine.openSource(test: TTestNode; mode : TOpenSourceMode);
 begin
   // nothing
 end;

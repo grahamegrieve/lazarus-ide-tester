@@ -49,11 +49,12 @@ type
     procedure endRun(Sender: TObject);
     function canTestProject: boolean; override;
     function hasTestProject: boolean;
-    procedure openSource(test : TTestNode); override;
+    procedure openSource(test : TTestNode; mode : TOpenSourceMode); override;
     function canDebug : boolean; override;
     function canStart : boolean; override;
     function canStop : boolean; override;
     function setUpDebug(session : TTestSession; node : TTestNode) : boolean; override;
+    function doesSource : boolean; override;
   end;
 
   { TTestSettingsIDEProvider }
@@ -327,31 +328,37 @@ begin
   end;
 end;
 
-procedure TTestEngineIDE.openSource(test: TTestNode);
+procedure TTestEngineIDE.openSource(test: TTestNode; mode : TOpenSourceMode);
 var
   pn : String;
   point : TPoint;
 begin
-  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and (test.SourceUnitError <> '') then
+  if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) then
   begin
-    pn := LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject'];
-    if pn = '' then
-      pn := LazarusIDE.ActiveProject.ProjectInfoFile;
-    pn := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(pn))+test.SourceUnitError);
-    point.x := 0;
-    point.y := test.LineNumber;
-    LazarusIDE.DoOpenFileAndJumpToPos(pn, point, test.LineNumber, -1, -1, [ofRegularFile]);
-  end
-  else if (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil) and (test.SourceUnit <> '') and (test.SourceUnit <> 'fpcunit') then
-  begin
-    pn := LazarusIDE.FindUnitFile(test.sourceUnit);
-    if pn <> '' then
+    if (mode in [osmNull, osmError]) and (test.SourceUnitError <> '') then
     begin
+      pn := LazarusIDE.ActiveProject.CustomSessionData['idetester.testproject'];
+      if pn = '' then
+        pn := LazarusIDE.ActiveProject.ProjectInfoFile;
+      pn := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(pn))+test.SourceUnitError);
       point.x := 0;
-      point.y := firstLineMention(pn, test.testClassName, test.testName);
-      LazarusIDE.DoOpenFileAndJumpToPos(pn, point, point.y, -1, -1, [ofRegularFile]);
+      point.y := test.LineNumber;
+      LazarusIDE.DoOpenFileAndJumpToPos(pn, point, test.LineNumber, -1, -1, [ofRegularFile]);
+      exit;
     end;
-  end
+    if (mode in [osmNull, osmDefinition]) and (test.SourceUnit <> '') and (test.SourceUnit <> 'fpcunit') then
+    begin
+      pn := LazarusIDE.FindUnitFile(test.sourceUnit);
+      if pn <> '' then
+      begin
+        point.x := 0;
+        point.y := firstLineMention(pn, test.testClassName, test.testName);
+        LazarusIDE.DoOpenFileAndJumpToPos(pn, point, point.y, -1, -1, [ofRegularFile]);
+        exit;
+      end;
+    end;
+    showMessage('unable to find source for '+test.testName+' ('+test.testClassName+' in '+test.SourceUnit+')');
+  end;
 end;
 
 function TTestEngineIDE.canDebug: boolean;
@@ -411,6 +418,11 @@ begin
     // 5. restore the mode
     LazarusIDE.ActiveProject.RunParameters.ActiveModeName := mode;
   end;
+end;
+
+function TTestEngineIDE.doesSource: boolean;
+begin
+  Result := (LazarusIDE <> nil) and (LazarusIDE.ActiveProject <> nil);
 end;
 
 { TTestEngineIDESession }

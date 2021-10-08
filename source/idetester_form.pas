@@ -75,6 +75,10 @@ type
 
   { TIdeTesterForm }
   TIdeTesterForm = class(TForm)
+    actTestGoSource: TAction;
+    actTestGoError: TAction;
+    actTestCopyName: TAction;
+    actTestCopyPath: TAction;
     actTestViewFlat: TAction;
     actTestViewIssues: TAction;
     actTestViewUnrun: TAction;
@@ -83,7 +87,7 @@ type
     actTestConfigure: TAction;
     actTestReload: TAction;
     actTestReset: TAction;
-    actTestCopy: TAction;
+    actTestCopyResults: TAction;
     actTestStop: TAction;
     actTestRunFailed: TAction;
     actTestRunChecked: TAction;
@@ -92,11 +96,17 @@ type
     ilMain: TImageList;
     ilOutcomes: TImageList;
     lblStatus: TLabel;
+    MenuItem10: TMenuItem;
+    MenuItem11: TMenuItem;
+    MenuItem12: TMenuItem;
+    MenuItem13: TMenuItem;
+    mnuGo: TMenuItem;
     MenuItem4: TMenuItem;
     MenuItem5: TMenuItem;
     MenuItem6: TMenuItem;
     MenuItem7: TMenuItem;
     MenuItem8: TMenuItem;
+    MenuItem9: TMenuItem;
     mnuDebug: TMenuItem;
     Panel2: TPanel;
     pmView: TPopupMenu;
@@ -123,7 +133,11 @@ type
     ToolButton7: TToolButton;
     ToolButton8: TToolButton;
     procedure actTestConfigureExecute(Sender: TObject);
-    procedure actTestCopyExecute(Sender: TObject);
+    procedure actTestCopyNameExecute(Sender: TObject);
+    procedure actTestCopyPathExecute(Sender: TObject);
+    procedure actTestCopyResultsExecute(Sender: TObject);
+    procedure actTestGoErrorExecute(Sender: TObject);
+    procedure actTestGoSourceExecute(Sender: TObject);
     procedure actTestReloadExecute(Sender: TObject);
     procedure actTestDebugSelectedExecute(Sender: TObject);
     procedure actTestResetExecute(Sender: TObject);
@@ -142,6 +156,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure pbBarPaint(Sender: TObject);
+    procedure pmTestsPopup(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure tvTestsAddToSelection(Sender: TBaseVirtualTree; Node: PVirtualNode);
     procedure tvTestsChecked(Sender: TBaseVirtualTree; Node: PVirtualNode);
@@ -299,7 +314,7 @@ begin
   actTestConfigure.Caption := rs_IdeTester_Caption_Configure;
   actTestReload.Caption := rs_IdeTester_Caption_Reload;
   actTestReset.Caption := rs_IdeTester_Caption_Reset_NODE;
-  actTestCopy.Caption := rs_IdeTester_Caption_Copy_NODE;
+  actTestCopyResults.Caption := rs_IdeTester_Caption_Copy_NODE;
   actTestStop.Caption := rs_IdeTester_Caption_Stop;
   actTestRunFailed.Caption := rs_IdeTester_Caption_RunFailed;
   actTestRunChecked.Caption := rs_IdeTester_Caption_RunChecked;
@@ -313,7 +328,7 @@ begin
   actTestConfigure.Hint := rs_IdeTester_Hint_Configure;
   actTestReload.Hint := rs_IdeTester_Hint_Reload;
   actTestReset.Hint := rs_IdeTester_Hint_Reset;
-  actTestCopy.Hint := rs_IdeTester_Hint_Copy;
+  actTestCopyResults.Hint := rs_IdeTester_Hint_Copy;
   actTestStop.Hint := rs_IdeTester_Hint_Stop;
   actTestRunFailed.Hint := rs_IdeTester_Hint_RunFailed;
   actTestRunChecked.Hint := rs_IdeTester_Hint_RunChecked;
@@ -378,7 +393,7 @@ begin
   hasTests := tc > 0;
   if (engine = nil) or (store = nil) then
   begin
-    actTestCopy.Enabled := false;
+    actTestCopyResults.Enabled := false;
     actTestReload.Enabled := false;
     actTestConfigure.Enabled := false;
     actTestReset.Enabled := false;
@@ -390,7 +405,7 @@ begin
   end
   else
   begin
-    actTestCopy.Enabled := not FRunning and hasTests;
+    actTestCopyResults.Enabled := not FRunning and hasTests;
     actTestReload.Enabled := not FRunning and engine.canStart;
     actTestConfigure.Enabled := not FRunning;
     actTestReset.Enabled := not FRunning and hasTests;
@@ -677,15 +692,17 @@ begin
     actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_NODE;
     actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_NODE;
     actTestReset.caption := rs_IdeTester_Caption_Reset_NODE;
-    actTestCopy.caption := rs_IdeTester_Caption_Copy_NODE;
+    actTestCopyResults.caption := rs_IdeTester_Caption_Copy_NODE;
   end
   else
   begin
     actTestRunSelected.caption := rs_IdeTester_Caption_RunSelected_LEAF;
     actTestDebugSelected.caption := rs_IdeTester_Caption_DebugSelected_LEAF;
     actTestReset.caption := rs_IdeTester_Caption_Reset_LEAF;
-    actTestCopy.caption := rs_IdeTester_Caption_Copy_LEAF;
+    actTestCopyResults.caption := rs_IdeTester_Caption_Copy_LEAF;
   end;
+  actTestGoError.enabled := engine.doesSource and (FSelectedNode.SourceUnitError <> '');
+  actTestGoSource.enabled := engine.doesSource and (FSelectedNode.SourceUnit <> '');
   UpdateTotals;
 end;
 
@@ -707,7 +724,7 @@ end;
 procedure TIdeTesterForm.tvTestsDblClick(Sender: TObject);
 begin
   if FSelectedNode <> nil then
-    engine.openSource(FSelectedNode);
+    engine.openSource(FSelectedNode, osmNull);
 end;
 
 procedure TIdeTesterForm.tvTestsGetHint(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; var LineBreakStyle: TVTTooltipLineBreakStyle; var HintText: String);
@@ -1030,6 +1047,11 @@ begin
   end;
 end;
 
+procedure TIdeTesterForm.pmTestsPopup(Sender: TObject);
+begin
+  mnuGo.visible := engine.doesSource;
+end;
+
 procedure TIdeTesterForm.Timer1Timer(Sender: TObject);
 var
   list : TTestEventQueue;
@@ -1194,9 +1216,21 @@ begin
   pbBarPaint(pbBar);
 end;
 
-procedure TIdeTesterForm.actTestCopyExecute(Sender: TObject);
+procedure TIdeTesterForm.actTestCopyResultsExecute(Sender: TObject);
 begin
   Clipboard.AsText := FSelectedNode.details('');
+end;
+
+procedure TIdeTesterForm.actTestGoErrorExecute(Sender: TObject);
+begin
+  if FSelectedNode <> nil then
+    engine.openSource(FSelectedNode, osmError);
+end;
+
+procedure TIdeTesterForm.actTestGoSourceExecute(Sender: TObject);
+begin
+  if FSelectedNode <> nil then
+    engine.openSource(FSelectedNode, osmDefinition);
 end;
 
 procedure TIdeTesterForm.actTestReloadExecute(Sender: TObject);
@@ -1256,6 +1290,26 @@ begin
   finally
     IDETesterSettings.free;
   end;
+end;
+
+procedure TIdeTesterForm.actTestCopyNameExecute(Sender: TObject);
+begin
+  Clipboard.AsText := FSelectedNode.testName;
+end;
+
+procedure TIdeTesterForm.actTestCopyPathExecute(Sender: TObject);
+var
+  s : String;
+  n : TTestNode;
+begin
+  n := FSelectedNode;
+  s := '';
+  while n <> nil do
+  begin
+    s := n.testName + ' / ' + s;
+    n := n.parent;
+  end;
+  Clipboard.AsText := s.Substring(0, s.length-3);
 end;
 
 // -- test thread  - no UI access ----------------------------------------------
