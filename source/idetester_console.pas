@@ -198,7 +198,6 @@ begin
 end;
 
 constructor TProgressWriter.Create(AQuiet: Boolean);
-
 begin
   FQuiet:=AQuiet;
 end;
@@ -409,11 +408,20 @@ end;
 procedure TSimpleResultsWriter.WriteResult(aResult: TTestResult);
 var
   f: text;
+  s : string;
 begin
-  system.Assign(f, FileName);
-  rewrite(f);
-  writeln(f, FDoc.Text);
-  close(f);
+  if filename <> '' then
+  begin
+    system.Assign(f, FileName);
+    rewrite(f);
+    writeln(f, FDoc.Text);
+    close(f);
+  end
+  else
+  begin
+    for s in FDoc do
+      writeln(s);
+  end;
 end;
 
 procedure TSimpleResultsWriter.AddFailure(ATest: TTest; AFailure: TTestFailure);
@@ -537,7 +545,7 @@ begin
     if info.fails > 0 then
       s := s + ', '+inttostr(info.fails)+' failed';
   end;
-  if sparse and (info.errors + info.fails + info.ignored = 0) then
+  if sparse and (FDoc.count > 1) and (info.errors + info.fails + info.ignored = 0) then
     FDoc.delete(info.index)
   else
     FDoc[info.index] := FDoc[info.index]+S;
