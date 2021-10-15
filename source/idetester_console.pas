@@ -40,7 +40,7 @@ interface
 
 uses
   Classes, SysUtils, Contnrs, dateutils, custapp, dom, inifiles,
-  fpcunit, testutils, testregistry, testdecorator,
+  fpcunit, testutils, testregistry, testdecorator, 
   fpcunitreport, latextestreport, xmltestreport, plaintestreport;
 
 type
@@ -222,11 +222,17 @@ procedure TProgressWriter.AddFailure(ATest: TTest; AFailure: TTestFailure);
 begin
   FSuccess:=False;
   If AFailure.IsIgnoredTest then
-    Inc(FIgnored)
+  begin
+    Inc(FIgnored);
+    If Not Quiet then
+      writechar('I');
+  end
   else
+  begin
     Inc(FFailed);
-  If Not Quiet then
-    writechar('F');
+    If Not Quiet then
+      writechar('F');
+  end;
 end;
 
 procedure TProgressWriter.AddError(ATest: TTest; AError: TTestFailure);
@@ -420,7 +426,10 @@ procedure TSimpleResultsWriter.AddFailure(ATest: TTest; AFailure: TTestFailure);
 begin
   inherited AddFailure(ATest, AFailure);
   FTempFailure := AFailure;
-  inc((FSuites[0] as TSuiteInfo).fails);
+  if AFailure.IsIgnoredTest then
+    inc((FSuites[0] as TSuiteInfo).ignored)
+  else
+    inc((FSuites[0] as TSuiteInfo).fails);
 end;
 
 procedure TSimpleResultsWriter.AddError(ATest: TTest; AError: TTestFailure);
@@ -537,7 +546,7 @@ begin
     if info.fails > 0 then
       s := s + ', '+inttostr(info.fails)+' failed';
   end;
-  if sparse and (info.errors + info.fails + info.ignored = 0) then
+  if sparse and (info.errors + info.fails = 0) then
     FDoc.delete(info.index)
   else
     FDoc[info.index] := FDoc[info.index]+S;

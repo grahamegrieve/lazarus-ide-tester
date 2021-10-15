@@ -20,6 +20,7 @@ type
     procedure testPass;
     procedure testFail;
     procedure testError;
+    procedure testIgnore;
   end;
 
 implementation
@@ -40,6 +41,11 @@ end;
 procedure TTestCaseTests.testError;
 begin
   raise Exception.create('Error');
+end;
+
+procedure TTestCaseTests.testIgnore;
+begin
+  ignore('testing');
 end;
 
 
