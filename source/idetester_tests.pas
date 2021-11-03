@@ -38,7 +38,8 @@ interface
 
 uses
   Classes, SysUtils,
-  FPCUnit, TestRegistry;
+  FPCUnit, TestRegistry,
+  idetester_base;
 
 type
   { TTestCaseTests }

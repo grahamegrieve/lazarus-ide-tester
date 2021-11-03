@@ -139,7 +139,8 @@ interface
 uses
   Classes, SysUtils, Generics.Collections,
   simpleipc,
-  FPCUnit, TestRegistry, TestDecorator;
+  FPCUnit, TestRegistry, TestDecorator,
+  idetester_base;
 
 const
   FPC_MAGIC_COMMAND = 'fpc4169C1B6-1D5C-4E4D-A790-8458C64CDA57';
