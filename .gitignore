@@ -32,3 +32,9 @@ project/lib_example/x86_64-linux/
 
 ide/lib/x86_64-linux/
 /project/idetester_example.testing.ini
+
+ide/lib
+
+package/lib
+
+.DS_Store
