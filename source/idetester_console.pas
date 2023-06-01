@@ -90,13 +90,13 @@ type
     procedure AddError(ATest: TTest; AError: TTestFailure); override;
   end;
 
-
+  TConsoleProgressMode = (cpmNone, cpmBrief, cpmVerbose);
 
   { TTestRunner }
 
   TIdeTesterConsoleRunner = class(TCustomApplication)
   private
-    FShowProgress: boolean;
+    FMode: TConsoleProgressMode;
     FFileName: string;
     FFormat: TFormat;
     FSkipTiming : Boolean;
@@ -113,7 +113,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    property ShowProgress: boolean read FShowProgress write FShowProgress;
+    property Mode: TConsoleProgressMode read FMode write FMode;
     property FileName: string read FFileName write FFileName;
     property Format: TFormat read FFormat write FFormat;
     property SkipTiming : Boolean read FSkipTiming write FSkipTiming;
@@ -142,12 +142,14 @@ Type
     FFailed: Integer;
     FIgnored : Integer;
     FErrors : Integer;
-    FQuiet : Boolean;
+    FMode : TConsoleProgressMode;
     fcount : integer;
     FSuccess : Boolean;
+    FStart : QWord;
+    function time : String;
     procedure WriteChar(c: char);
   public
-    Constructor Create(AQuiet : Boolean);
+    Constructor Create(aMode : TConsoleProgressMode);
     destructor Destroy; override;
     Function GetExitCode : Integer;
     { ITestListener interface requirements }
@@ -161,7 +163,7 @@ Type
     Property Failed : Integer Read FFailed;
     Property Errors : Integer Read FErrors;
     Property Ignored : Integer Read FIgnored;
-    Property Quiet : Boolean Read FQuiet;
+    Property Mode : TConsoleProgressMode Read FMode;
   end;
 
 { TSuiteInfo }
@@ -190,6 +192,11 @@ end;
 
 { TProgressWriter }
 
+function TProgressWriter.time: String;
+begin
+  result := ' '+IntToStr(GetTickCount64 - FStart)+'ms';
+end;
+
 procedure TProgressWriter.WriteChar(c: char);
 begin
   write(c);
@@ -197,15 +204,21 @@ begin
   Flush(output);
 end;
 
-constructor TProgressWriter.Create(AQuiet: Boolean);
+constructor TProgressWriter.Create(aMode: TConsoleProgressMode);
 begin
-  FQuiet:=AQuiet;
+  inherited Create;
+  FMode := AMode;
 end;
 
 destructor TProgressWriter.Destroy;
 begin
   // on descruction, just write the missing line ending
-  writeln;
+  case FMode of
+    cpmNone: ; // nothing
+    cpmBrief: writeln;
+    cpmVerbose:
+      writeln('finished');
+  end;
   inherited Destroy;
 end;
 
@@ -223,14 +236,20 @@ begin
   If AFailure.IsIgnoredTest then
   begin
     Inc(FIgnored);
-    If Not Quiet then
-      writechar('I');
+    case FMode of
+      cpmNone: ;
+      cpmBrief:writechar('I');
+      cpmVerbose: writeln('Ignored');
+    end;
   end
   else
   begin
     Inc(FFailed);
-    If Not Quiet then
-      writechar('F');
+    case FMode of
+      cpmNone: ;
+      cpmBrief: writechar('F');
+      cpmVerbose: writeln('Failed'+time+': '+aFailure.AsString);
+    end;
   end;
 end;
 
@@ -238,25 +257,53 @@ procedure TProgressWriter.AddError(ATest: TTest; AError: TTestFailure);
 begin
   FSuccess:=False;
   Inc(FErrors);
-  if not Quiet then
-    writechar('E');
+  case FMode of
+    cpmNone: ;
+    cpmBrief:  writechar('E');
+    cpmVerbose: writeln('Error'+time+': '+AError.AsString);
+  end;
 end;
 
 procedure TProgressWriter.StartTest(ATest: TTest);
+var
+  s : String;
+  i : integer;
 begin
-FSuccess := true; // assume success, until proven otherwise
+  if FMode = cpmVerbose then
+  begin
+    s := '';
+    for i := 1 to FCount do
+      s := s + ' ';
+    s := s + 'Test '+ATest.TestName+'...';
+    write(s);
+  end;
+  FSuccess := true; // assume success, until proven otherwise
+  FStart := GetTickCount64;
 end;
 
 procedure TProgressWriter.EndTest(ATest: TTest);
 begin
-if FSuccess and not Quiet then
-  writechar('.');
+  case FMode of
+    cpmNone:;
+    cpmBrief:if FSuccess then writechar('.');
+    cpmVerbose:if FSuccess then writeln('OK'+time);
+  end;
 end;
 
 procedure TProgressWriter.StartTestSuite(ATestSuite: TTestSuite);
+var
+  s : String;
+  i : integer;
 begin
-// do nothing
-  inc(fcount);
+  if FMode = cpmVerbose then
+  begin
+    s := '';
+    for i := 1 to FCount do
+      s := s + ' ';
+    s := s + 'Suite '+ATestSuite.TestName;
+    writeln(s);
+  end;
+  inc(FCount);
 end;
 
 procedure TProgressWriter.EndTestSuite(ATestSuite: TTestSuite);
@@ -265,8 +312,14 @@ begin
   dec(fcount);
   if fCount = 0 then
   begin
-    writeln('!');
-    writeln;
+    if FMode = cpmVerbose then
+    begin
+    end
+    else
+    begin
+      writeln('!');
+      writeln;
+    end;
   end;
 end;
 
@@ -303,7 +356,7 @@ begin
   ResultsWriter:=Nil;
   TestResult := TTestResult.Create;
   try
-    ProgressWriter:=TProgressWriter.Create(Not ShowProgress);
+    ProgressWriter:=TProgressWriter.Create(Mode);
     TestResult.AddListener(ProgressWriter);
     ResultsWriter:=GetResultsWriter;
     ResultsWriter.Filename := FileName;
