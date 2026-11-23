@@ -1,5 +1,10 @@
 # lazarus-ide-tester
 
+
+## Deprecation Notice 
+
+This code is no longer well maintained. You might consider mriscoc's fork of this. Or not. Or you might volunteer to take ownership of it. 
+
 The Lazarus IDE tester is an improved set of unit testing frameworks for 
 Lazarus. It still uses FPCUnit, but allows the developer to run the tests
 within the lazarus IDE, for an improved workflow.
