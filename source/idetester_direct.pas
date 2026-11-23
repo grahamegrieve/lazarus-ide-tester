@@ -33,7 +33,7 @@ POSSIBILITY OF SUCH DAMAGE.
 interface
 
 uses
-  Classes, SysUtils,
+  Classes, SysUtils, Generics.Collections,
   FPCUnit, testregistry, testdecorator,
   idetester_base, idetester_strings;
 
@@ -54,12 +54,11 @@ type
   TTestEngineDirectListener = class (TinterfacedObject, ITestListener)
   private
     FListener : TTestListener;
-    FRoot : TTestNode;
-    function findTestInNode(test : TTest; node : TTestNode) : TTestNode;
+    FNodeMap : TDictionary<TTest, TTestNode>;
     function findNode(test : TTest; optional : boolean = false) : TTestNode;
     function makeError(err : TTestFailure) : TTestError;
   public
-    constructor create(listener : TTestListener; root : TTestNode);
+    constructor create(listener : TTestListener; nodeMap : TDictionary<TTest, TTestNode>);
 
     procedure StartTest(ATest: TTest);
     procedure EndTest(ATest: TTest);
@@ -73,9 +72,12 @@ type
 
   TTestEngineDirect = class (TTestEngine)
   private
+    FNodeMap : TDictionary<TTest, TTestNode>; // test -> node, for finding the node for test events
     Function registerTestNode(testList : TTestNodeList; parent : TTestNode; test : TTest) : TTestNode;
     procedure BuildTree(testList : TTestNodeList; rootTest: TTestNode; aSuite: TTestSuite);
   public
+    constructor Create;
+    destructor Destroy; override;
     procedure loadAllTests(testList : TTestNodeList; manual : boolean); override;
     function threadMode : TTestEngineThreadMode; override;
     function canTerminate : boolean; override;
@@ -94,34 +96,17 @@ implementation
 
 { TTestEngineDirectListener }
 
-constructor TTestEngineDirectListener.create(listener: TTestListener; root: TTestNode);
+constructor TTestEngineDirectListener.create(listener: TTestListener; nodeMap : TDictionary<TTest, TTestNode>);
 begin
   inherited Create;
   FListener := listener;
-  FRoot := root;
-end;
-
-function TTestEngineDirectListener.findTestInNode(test: TTest; node: TTestNode): TTestNode;
-var
-  child, t : TTestNode;
-begin
-  if node.Data = test then
-    result := node
-  else
-  begin
-    result := nil;
-    for child in node.children do
-    begin
-      t := findTestInNode(test, child);
-      if (t <> nil) then
-        exit(t);
-    end;
-  end;
+  FNodeMap := nodeMap;
 end;
 
 function TTestEngineDirectListener.findNode(test : TTest; optional : boolean) : TTestNode;
 begin
-  result := findTestInNode(test, FRoot);
+  if not FNodeMap.TryGetValue(test, result) then
+    result := nil;
   if (result = nil) and not optional then
     raise EIDETester.create(Format(rs_IdeTester_Err_Node_Not_Found, [test.TestName])); // this really shouldn't happen
 end;
@@ -201,6 +186,7 @@ end;
 
 destructor TTestSessionDirect.Destroy;
 begin
+  FTestResult.Free;
   inherited Destroy;
 end;
 
@@ -212,11 +198,24 @@ end;
 
 { TTestEngineDirect }
 
+constructor TTestEngineDirect.Create;
+begin
+  inherited Create;
+  FNodeMap := TDictionary<TTest, TTestNode>.create;
+end;
+
+destructor TTestEngineDirect.Destroy;
+begin
+  FNodeMap.Free;
+  inherited Destroy;
+end;
+
 procedure TTestEngineDirect.loadAllTests(testList : TTestNodeList; manual : boolean);
 var
   test : TTestSuite;
   node : TTestNode;
 begin
+  FNodeMap.Clear;
   test := GetTestRegistry;
   node := registerTestNode(testList, nil, test);
   BuildTree(testList, node, test);
@@ -229,6 +228,7 @@ begin
   if (parent <> nil) then
     parent.Children.add(result);
   result.Data := test;
+  FNodeMap.AddOrSetValue(test, result);
   result.testName := test.TestName;
   result.SourceUnit := test.UnitName;
   result.testClassName := test.ClassName;
@@ -239,19 +239,30 @@ end;
 procedure TTestEngineDirect.BuildTree(testList : TTestNodeList; rootTest: TTestNode; aSuite: TTestSuite);
 var
   test: TTestNode;
+  inner : TTest;
   i: integer;
 begin
   for i := 0 to ASuite.ChildTestCount - 1 do
   begin
-    if (ASuite.Test[i].TestName = '') and (ASuite.ChildTestCount = 1) then
-      test := rootTest
+    // a single unnamed child suite is merged into its parent (but a test case always gets its own node)
+    if (ASuite.Test[i].TestName = '') and (ASuite.ChildTestCount = 1) and (ASuite.Test[i] is TTestSuite) then
+    begin
+      test := rootTest;
+      FNodeMap.AddOrSetValue(ASuite.Test[i], rootTest);
+    end
     else
       test := registerTestNode(testList, rootTest, ASuite.Test[i]);
 
     if ASuite.Test[i] is TTestSuite then
       BuildTree(testList, test, TTestSuite(ASuite.Test[i]))
     else if TObject(ASuite.Test[i]).InheritsFrom(TTestDecorator) then
-      BuildTree(testList, test, TTestSuite(TTestDecorator(ASuite.Test[i]).Test));
+    begin
+      inner := TTestDecorator(ASuite.Test[i]).Test;
+      if inner is TTestSuite then
+        BuildTree(testList, test, TTestSuite(inner))
+      else if inner <> nil then
+        FNodeMap.AddOrSetValue(inner, test); // events for the decorated test go to the decorator's node
+    end;
   end;
 end;
 
@@ -290,20 +301,23 @@ var
   sess : TTestSessionDirect;
   listenerProxy : ITestListener;
 begin
-  listenerProxy := TTestEngineDirectListener.create(listener, node) as ITestListener;
+  listenerProxy := TTestEngineDirectListener.create(listener, FNodeMap) as ITestListener;
 
   sess := session as TTestSessionDirect;
   try
     sess.FTestResult.AddListener(listenerProxy);
-    if (node.data is TTestSuite) then
-      listener.StartTestSuite(node);
     try
-      (node.data as TTest).Run(sess.FTestResult);
-    finally
       if (node.data is TTestSuite) then
-        listener.EndTestSuite(node);
+        listener.StartTestSuite(node);
+      try
+        (node.data as TTest).Run(sess.FTestResult);
+      finally
+        if (node.data is TTestSuite) then
+          listener.EndTestSuite(node);
+      end;
+    finally
+      sess.FTestResult.RemoveListener(listenerProxy);
     end;
-    sess.FTestResult.RemoveListener(listenerProxy);
   finally
     listener.EndRun(node);
   end;

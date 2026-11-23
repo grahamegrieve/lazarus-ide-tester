@@ -498,8 +498,8 @@ begin
         inc(cc);
       case tn.outcome of
         toPass : inc(pc);
-        toFail : inc(ec);
-        toError, toHalt : inc(fc);
+        toFail : inc(fc);
+        toError, toHalt : inc(ec);
       else //  toNotRun
         inc(nr);
       end;
@@ -1006,7 +1006,7 @@ begin
   FWantStop := true;
   if engine.canTerminate then
   begin
-    FKillTime := GetTickCount64 + StrToInt(store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY)));
+    FKillTime := GetTickCount64 + StrToIntDef(store.read(tsmConfig, 'killtime', inttostr(DEFAULT_KILL_TIME_DELAY)), DEFAULT_KILL_TIME_DELAY);
     actTestStop.ImageIndex := IMG_INDEX_WAIT;
   end;
 end;
@@ -1192,7 +1192,7 @@ begin
     case child.outcome of
       toSomePass : if outcome = toUnknown then outcome := toSomePass else if outcome in [toPass, toNotRun] then outcome := toSomePass;
       toNotRun : if outcome = toUnknown then outcome := toNotRun else if outcome = toPass then outcome := toSomePass;
-      toPass : if outcome = toUnknown then outcome := toPass else if outcome = toUnknown then outcome := toSomePass;
+      toPass : if outcome = toUnknown then outcome := toPass else if outcome = toNotRun then outcome := toSomePass;
       toFail: if outcome <> toError then outcome := toFail;
       toError, toHalt: outcome := toError;
     else
@@ -1223,7 +1223,16 @@ begin
       FSession.skipTest(ti);
   if debug then
     if not engine.SetUpDebug(FSession, FRunningTest) then
+    begin
+      // undo the set up, or the form stays in running mode for ever
+      engine.finishTestRun(FSession);
+      FSession := nil;
+      FRunningTest := nil;
+      Timer1.Enabled := false;
+      FRunning := false;
+      UpdateTotals;
       abort;
+    end;
   FStartTime := GetTickCount64;
   FEndTime := 0;
 end;
@@ -1246,7 +1255,8 @@ end;
 
 procedure TIdeTesterForm.actTestCopyResultsExecute(Sender: TObject);
 begin
-  Clipboard.AsText := FSelectedNode.details('');
+  if FSelectedNode <> nil then
+    Clipboard.AsText := FSelectedNode.details('');
 end;
 
 procedure TIdeTesterForm.actTestGoErrorExecute(Sender: TObject);
@@ -1322,7 +1332,8 @@ end;
 
 procedure TIdeTesterForm.actTestCopyNameExecute(Sender: TObject);
 begin
-  Clipboard.AsText := FSelectedNode.testName;
+  if FSelectedNode <> nil then
+    Clipboard.AsText := FSelectedNode.testName;
 end;
 
 procedure TIdeTesterForm.actTestCopyPathExecute(Sender: TObject);
@@ -1331,6 +1342,8 @@ var
   n : TTestNode;
 begin
   n := FSelectedNode;
+  if n = nil then
+    exit;
   s := '';
   while n <> nil do
   begin
@@ -1364,7 +1377,9 @@ begin
   finally
     LeaveCriticalSection(FLock);
   end;
-  if FWantStop then
+  // stop the run when the next test starts. (Not on other events - the engine
+  // reports halted tests and the end of the run while it's stopping)
+  if FWantStop and (event in [tekStart, tekStartSuite]) then
     Abort;
 end;
 

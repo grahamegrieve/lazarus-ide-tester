@@ -38,8 +38,6 @@ uses
   ProjectIntf, LazIDEIntf, MacroIntf, CompOptsIntf, IDEIntf,
   idetester_strings, idetester_runtime, idetester_base, idetester_external;
 
-const
-  EOL = {$IFDEF MSWINDOWS} #13#10 {$ELSE} #10 {$ENDIF};
 
 type
   { TTestEngineIDESession }
@@ -118,8 +116,9 @@ type
   private
     FProcess : TProcess;
     FEvent : TConsolerOutputProcessLineEvent;
-    FCarry : String;
-    procedure processOutput(text : String);
+    FCarry : RawByteString;
+    procedure processOutput(text : RawByteString);
+    procedure emit(line : RawByteString);
   public
     constructor Create(process : TProcess; event : TConsolerOutputProcessLineEvent);
 
@@ -127,17 +126,27 @@ type
     property Event : TConsolerOutputProcessLineEvent read FEvent write FEvent;
   end;
 
-procedure TConsoleOutputProcessor.processOutput(text: String);
-var
-  curr, s : String;
+procedure TConsoleOutputProcessor.emit(line: RawByteString);
 begin
-  curr := FCarry + text;
-  while curr.contains(EOL) do
+  if (line <> '') and (line[length(line)] = #13) then
+    SetLength(line, length(line) - 1);
+  SetCodePage(line, CP_UTF8, false);
+  event(line);
+end;
+
+procedure TConsoleOutputProcessor.processOutput(text: RawByteString);
+var
+  i : integer;
+begin
+  // work in bytes, so that a UTF-8 character split across two reads isn't mangled
+  FCarry := FCarry + text;
+  i := pos(#10, FCarry);
+  while i > 0 do
   begin
-    StringSplit(curr, EOL, s, curr);
-    event(s);
+    emit(copy(FCarry, 1, i - 1));
+    delete(FCarry, 1, i);
+    i := pos(#10, FCarry);
   end;
-  FCarry := curr;
 end;
 
 constructor TConsoleOutputProcessor.Create(process: TProcess; event : TConsolerOutputProcessLineEvent);
@@ -150,24 +159,43 @@ end;
 procedure TConsoleOutputProcessor.Process;
 var
   BytesRead, total : longint;
-  Buffer           : TBytes;
+  Buffer : RawByteString;
   start : UInt64;
+  function readSome : boolean;
+  begin
+    result := FProcess.Output.NumBytesAvailable > 0;
+    if result then
+    begin
+      SetLength(Buffer, BUF_SIZE);
+      BytesRead := FProcess.Output.Read(Buffer[1], BUF_SIZE);
+      SetLength(Buffer, BytesRead);
+      total := total + BytesRead;
+      processOutput(Buffer);
+    end;
+  end;
 begin
   start := GetTickCount64;
   total := 0;
   repeat
-    SetLength(Buffer, BUF_SIZE);
-    if FProcess.Output.NumBytesAvailable > 0 then
+    if not readSome then
     begin
-      BytesRead := FProcess.Output.Read(Buffer, BUF_SIZE);
-      total := total + BytesRead;
-      processOutput(TEncoding.UTF8.GetAnsiString(Buffer, 0, BytesRead));
+      if (total = 0) and (GetTickCount64 - start > CONSOLE_TIMEOUT) then
+      begin
+        // nothing from the process - give up on it, so that it's not left running
+        FProcess.Terminate(1);
+        exit;
+      end;
+      sleep(10); // don't spin while waiting for output
     end;
-    if (total = 0) and (GetTickCount64 - start > CONSOLE_TIMEOUT) then
-      exit;
-  until not FProcess.Active;
-  if FProcess.Active then
-    FProcess.Terminate(1);
+  until not FProcess.Running;
+  // the process has finished, but there may be output still in the pipe
+  while readSome do
+    ;
+  if FCarry <> '' then
+  begin
+    emit(FCarry);
+    FCarry := '';
+  end;
 end;
 
 { TTestSettingsIDEProvider }
@@ -179,7 +207,7 @@ begin
   tp := read(tsmConfig, 'testproject', '');
   if tp = '' then
     tp := LazarusIDE.ActiveProject.ProjectInfoFile;
-  result := tp.Replace('.lpi', '') + '.testing.ini';
+  result := ChangeFileExt(tp, '.testing.ini');
 end;
 
 function TTestSettingsIDEProvider.read(mode : TTestSettingsMode; name, defValue: String): String;
@@ -235,6 +263,7 @@ var
   sess : TTestEngineIDESession;
   ok : boolean;
 begin
+  result := nil;
   sess := session as TTestEngineIDESession;
   if sess.debugging then
   begin
@@ -432,7 +461,8 @@ begin
     pm.Display := '';
     pm.IncludeSystemVariables := true;
 
-    //  3. set the mode 'test' as active
+    //  3. set the mode 'test' as active (remembering the current mode, to restore it)
+    mode := LazarusIDE.ActiveProject.RunParameters.ActiveModeName;
     LazarusIDE.ActiveProject.RunParameters.ActiveModeName := 'Test';
 
     //  4. ask the IDE to debug
@@ -488,7 +518,8 @@ begin
   {$IFDEF DARWIN}
   result := ExtractFileDir(ParamStr(0));
   i := result.IndexOf('lazarus.app');
-  result := result.Substring(0, i-1);
+  if i > 0 then
+    result := result.Substring(0, i-1);
   result := IncludeTrailingPathDelimiter(result)+'lazbuild';
   {$ENDIF}
 end;
@@ -501,6 +532,7 @@ var
   p : TConsoleOutputProcessor;
   point : TPoint;
 begin
+  result := false;
   if LazarusIDE.ActiveProject.CustomSessionData['idetester.autosave'] = '1' then
     if LazarusIDE.DoSaveAll([sfCanAbort]) <> mrOK then
       exit(false);
@@ -523,7 +555,7 @@ begin
           params.add(lpi);
           pp.Parameters := params;
           pp.ShowWindow := swoHIDE;
-          pp.Options := [poUsePipes];
+          pp.Options := [poUsePipes, poStderrToOutPut]; // stderr has to be read too, or lazbuild can block on a full pipe
           pp.Execute;
           p := TConsoleOutputProcessor.create(pp, processLine);
           try
@@ -533,13 +565,13 @@ begin
           end;
           result := pp.ExitCode = 0;
         finally
-          process.free;
+          pp.free;
         end;
       finally
         params.free;
       end;
 
-      tfn := IncludeTrailingPathDelimiter(GetTempDir(false))+'idetester-lazbuild-output.log';
+      tfn := IncludeTrailingPathDelimiter(GetTempDir(false))+'idetester-lazbuild-output-'+inttostr(GetProcessID)+'.log';
       FOutput.SaveToFile(tfn);
 
       if not result then

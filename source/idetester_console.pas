@@ -339,10 +339,56 @@ end;
 
 procedure TIdeTesterConsoleRunner.DoRun;
 var
-  S : string;
+  s : string;
 begin
+  // command line options (long form only, so as not to collide with the test program's own parameters).
+  // these override any properties set by the program
+  //   --list                        list the top level suites
+  //   --suite=a,b                   run only the named suites/tests
+  //   --format=simple|plain|plainnotiming|xml|latex
+  //   --file=fn                     write the results to fn instead of the console
+  //   --progress / --verbose        progress output while running
+  //   --sparse, --skiptiming, --skipaddress
   Terminate;
-  DoTestRun(GetTestRegistry);
+  if HasOption('format') then
+  begin
+    s := LowerCase(GetOptionValue('format'));
+    if s = 'plain' then
+      FFormat := fPlain
+    else if s = 'plainnotiming' then
+      FFormat := fPlainNoTiming
+    else if s = 'xml' then
+      FFormat := fXML
+    else if s = 'latex' then
+      FFormat := fLatex
+    else
+      FFormat := fSimple;
+  end;
+  if HasOption('file') then
+    FFileName := GetOptionValue('file');
+  if HasOption('progress') then
+    FMode := cpmBrief;
+  if HasOption('verbose') then
+    FMode := cpmVerbose;
+  if HasOption('sparse') then
+    FSparse := true;
+  if HasOption('skiptiming') then
+    FSkipTiming := true;
+  if HasOption('skipaddress') then
+    FSkipAddressInfo := true;
+
+  if HasOption('list') then
+  begin
+    FSuite := '';
+    RunSuite;
+  end
+  else if HasOption('suite') then
+  begin
+    FSuite := GetOptionValue('suite');
+    RunSuite;
+  end
+  else
+    DoTestRun(GetTestRegistry);
 end;
 
 procedure TIdeTesterConsoleRunner.DoTestRun(ATest: TTest);

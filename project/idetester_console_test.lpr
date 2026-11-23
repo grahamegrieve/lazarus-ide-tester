@@ -15,7 +15,7 @@ begin
   Application := TIdeTesterConsoleRunner.Create(nil);
   Application.Initialize;
   Application.Title := 'IDEConsole Tester Consoler';
-  Application.ShowProgress := true;
+  Application.Mode := cpmBrief;
   Application.Sparse := true;
   Application.Run;
   Application.Free;

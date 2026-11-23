@@ -38,10 +38,12 @@ interface
 
 uses
   Classes, SysUtils,
-  FPCUnit, TestRegistry,
-  idetester_base;
+  FPCUnit, TestRegistry;
 
 type
+  // (not EIDETester - this unit is used in console programs, which don't have the LCL that idetester_base needs)
+  ETestCaseTestsError = class (Exception);
+
   { TTestCaseTests }
 
   TTestCaseTests = class (TTestCase)
@@ -69,7 +71,7 @@ end;
 
 procedure TTestCaseTests.testError;
 begin
-  raise EIDETester.create('Error');
+  raise ETestCaseTestsError.create('Error');
 end;
 
 procedure TTestCaseTests.testIgnore;

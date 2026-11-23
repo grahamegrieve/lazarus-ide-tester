@@ -79,6 +79,7 @@ type
   private
     FProcess: TProcess;
     FSkipList : TTestNodeList;
+    FSkipFile : String;
 
     function saveSkipList : String;
   public
@@ -97,7 +98,6 @@ type
   TTesterTestEntry = class (TObject)
   private
     FChildren : TTesterTestEntryList;
-    FClassName : String;
     FClssName: String;
     FId: String;
     FSourceUnit: String;
@@ -106,7 +106,7 @@ type
     destructor Destroy; override;
     function addChild : TTesterTestEntry;
     property id : String read FId write FId;
-    property clssName : String read FClssName write FClassName;
+    property clssName : String read FClssName write FClssName;
     property testName : String read FTestname write FTestName;
     property sourceUnit : String read FSourceUnit write FSourceUnit;
   end;
@@ -122,6 +122,8 @@ type
     FTests : TTesterTestEntry;
     FTestStack : TTesterTestEntryList;
     FRunningTest : TTestNode;
+    FNodeMap : TDictionary<String, TTestNode>; // id -> node, for the tests in the current run
+    procedure mapNodes(node : TTestNode);
 
     procedure processLine(line : String; var finished : boolean);
     procedure processEntry(line : String);
@@ -131,7 +133,6 @@ type
     Function registerTestNode(testList : TTestNodeList; parent : TTestNode; test : TTesterTestEntry) : TTestNode;
     procedure BuildTree(testList : TTestNodeList; rootTest: TTestNode; suite: TTesterTestEntry);
 
-    function findTestInNode(id : String; node : TTestNode) : TTestNode;
     function findNode(id : String) : TTestNode;
     procedure markTestHalted(node : TTestNode);
     procedure addBaseParams(st : TStringList);
@@ -204,6 +205,15 @@ begin
     inc(result);
 end;
 
+function newServerId : String;
+var
+  g : TGUID;
+begin
+  // the server is visible to other processes, so don't make the name guessable
+  CreateGUID(g);
+  result := GUIDToString(g).Replace('{', '').Replace('}', '').Replace('-', '');
+end;
+
 { TTesterOutputListener }
 
 constructor TTesterOutputListener.Create(event : TTesterOutputListenerEvent);
@@ -213,7 +223,7 @@ begin
   FServer := TSimpleIPCServer.create(nil);
   FServer.Threaded := true;
   FServer.Global := true;
-  FServer.ServerID := 'fpc-'+IntToStr(GetTickCount64);
+  FServer.ServerID := 'fpc-'+newServerId;
   FServer.Active := true;
 end;
 
@@ -234,18 +244,23 @@ var
   fin : boolean;
 begin
   fin := false;
-  while process.Active and not fin do
-  begin
-    while FServer.PeekMessage(5, true) do
+  try
+    while not fin do
     begin
-      FEvent(FServer.StringMessage, fin);
-      if (fin) then
+      if FServer.PeekMessage(5, true) then
+        FEvent(FServer.StringMessage, fin)
+      else if not process.Active then
       begin
-        break;
+        // the process has finished. Pick up anything it sent that's still queued, then we're done
+        while not fin and FServer.PeekMessage(0, true) do
+          FEvent(FServer.StringMessage, fin);
+        fin := true;
       end;
     end;
+  finally
+    // always make sure the process is gone, including when the run is stopped (EAbort from the event)
+    process.Terminate(1);
   end;
-  process.Terminate(1);
 end;
 
 { TTestEngineExternalSession }
@@ -255,7 +270,9 @@ var
   f : System.Text;
   n : TTestNode;
 begin
-  result := IncludeTrailingPathDelimiter(GetTempDir)+'skip-list.txt';
+  if FSkipFile = '' then
+    FSkipFile := GetTempFileName(GetTempDir, 'idetester-skip');
+  result := FSkipFile;
   assignFile(f, result);
   rewrite(f);
   for n in FSkipList do
@@ -271,6 +288,8 @@ end;
 
 destructor TTestEngineExternalSession.Destroy;
 begin
+  if (FSkipFile <> '') and FileExists(FSkipFile) then
+    DeleteFile(FSkipFile);
   FSkipList.free;
   inherited Destroy;
 end;
@@ -347,10 +366,10 @@ begin
     te.id := id;
     te.clssName := l;
     te.testName := r;
-    if te.testName.contains('@@') then
+    if te.testName.contains('@@') then // the unit is always last
     begin
-      te.SourceUnit := te.testName.Substring(te.testName.IndexOf('@@')+2).trim;
-      te.testName := te.testName.Substring(0, te.testName.IndexOf('@@')).trim;
+      te.SourceUnit := te.testName.Substring(te.testName.LastIndexOf('@@')+2).trim;
+      te.testName := te.testName.Substring(0, te.testName.LastIndexOf('@@')).trim;
     end;
   end;
 end;
@@ -389,13 +408,13 @@ begin
     try
       err.ExceptionClass := l;
       err.ExceptionMessage := r;
-      if err.ExceptionMessage.contains('@@') then
+      if err.ExceptionMessage.contains('@@') then // the location is always last; the message itself might contain @@
       begin
         s := err.ExceptionMessage;
-        readLocation(s.Substring(s.IndexOf('@@')+2).trim, src, ln);
+        readLocation(s.Substring(s.LastIndexOf('@@')+2).trim, src, ln);
         err.SourceUnit := src;
         err.LineNumber := ln;
-        err.ExceptionMessage := err.ExceptionMessage.Substring(0, err.ExceptionMessage.IndexOf('@@')).trim;
+        err.ExceptionMessage := s.Substring(0, s.LastIndexOf('@@')).trim;
       end;
       listener.TestFailure(test, err);
     finally
@@ -409,12 +428,13 @@ begin
     try
       err.ExceptionClass := l;
       err.ExceptionMessage := r;
-      if err.ExceptionMessage.contains('@@') then
+      if err.ExceptionMessage.contains('@@') then // the location is always last; the message itself might contain @@
       begin
-        readLocation(err.ExceptionMessage.Substring(err.ExceptionMessage.IndexOf('@@')+2).trim, src, ln);
+        s := err.ExceptionMessage;
+        readLocation(s.Substring(s.LastIndexOf('@@')+2).trim, src, ln);
         err.SourceUnit := src;
         err.LineNumber := ln;
-        err.ExceptionMessage := err.ExceptionMessage.Substring(0, err.ExceptionMessage.IndexOf('@@')).trim;
+        err.ExceptionMessage := s.Substring(0, s.LastIndexOf('@@')).trim;
       end;
       listener.TestError(test, err);
     finally
@@ -510,27 +530,19 @@ begin
   end;
 end;
 
-function TTestEngineExternal.findTestInNode(id: String; node: TTestNode): TTestNode;
+procedure TTestEngineExternal.mapNodes(node: TTestNode);
 var
-  child, t : TTestNode;
+  child : TTestNode;
 begin
-  if (node.Data as TTestNodeId).id = id then
-    result := node
-  else
-  begin
-    result := nil;
-    for child in node.children do
-    begin
-      t := findTestInNode(id, child);
-      if (t <> nil) then
-        exit(t);
-    end;
-  end;
+  FNodeMap.AddOrSetValue((node.Data as TTestNodeId).id, node);
+  for child in node.children do
+    mapNodes(child);
 end;
 
 function TTestEngineExternal.findNode(id: String): TTestNode;
 begin
-  result := findTestInNode(id, FRunningTest);
+  if not FNodeMap.TryGetValue(id, result) then
+    result := nil;
   if (result = nil) then
     raise EIDETester.create(Format(rs_IdeTester_Err_Node_Not_Found, [id])); // this really shouldn't happen
 end;
@@ -555,16 +567,29 @@ end;
 
 procedure TTestEngineExternal.addBaseParams(st: TStringList);
 var
-  l , r : String;
+  s, p : String;
+  i : integer;
+  inQuote : boolean;
 begin
-  r := settings.parameters;
-  while (r <> '') do
+  // split on spaces, but allow "quoted parameters" (e.g. paths that contain spaces)
+  s := settings.parameters;
+  p := '';
+  inQuote := false;
+  for i := 1 to length(s) do
   begin
-    StringSplit(r, ' ', l, r);
-    l := l.trim;
-    if (l <> '') then
-      st.add(l);
+    if s[i] = '"' then
+      inQuote := not inQuote
+    else if (s[i] = ' ') and not inQuote then
+    begin
+      if p <> '' then
+        st.add(p);
+      p := '';
+    end
+    else
+      p := p + s[i];
   end;
+  if p <> '' then
+    st.add(p);
 end;
 
 function TTestEngineExternal.makeSession: TTestEngineExternalSession;
@@ -585,11 +610,13 @@ end;
 constructor TTestEngineExternal.Create;
 begin
   inherited create;
+  FNodeMap := TDictionary<String, TTestNode>.create;
   FIPCServer := TTesterOutputListener.create(processLine);
 end;
 
 destructor TTestEngineExternal.Destroy;
 begin
+  FNodeMap.Free;
   FIPCServer.Free;
   inherited Destroy;
 end;
@@ -624,41 +651,49 @@ procedure TTestEngineExternal.runTest(session: TTestSession; node: TTestNode);
 var
   sess : TTestEngineExternalSession;
   params : TStringList;
+  p : TProcess;
 begin
   sess := session as TTestEngineExternalSession;
   try
-    clearTests;
-    FRunningTest := node;
-    params := TStringList.create;
     try
-      addBaseParams(params);
-      params.add('-'+FPC_MAGIC_COMMAND);
-      params.add('-server');
-      params.add(FIPCServer.id);
-      params.add('-run');
-      params.add((node.Data as TTestNodeId).id);
-      if sess.FSkipList.count > 0 then
-      begin
-        params.add('-skip');
-        params.add(sess.saveSkipList);
-      end;
-      sess.Process := runProgram(sess, params);
+      clearTests;
+      FRunningTest := node;
+      FNodeMap.Clear;
+      mapNodes(node);
+      params := TStringList.create;
       try
-        if sess.process <> nil then
-          FIPCServer.listen(sess.process);
+        addBaseParams(params);
+        params.add('-'+FPC_MAGIC_COMMAND);
+        params.add('-server');
+        params.add(FIPCServer.id);
+        params.add('-run');
+        params.add((node.Data as TTestNodeId).id);
+        if sess.FSkipList.count > 0 then
+        begin
+          params.add('-skip');
+          params.add(sess.saveSkipList);
+        end;
+        sess.Process := runProgram(sess, params);
+        try
+          if sess.process <> nil then
+            FIPCServer.listen(sess.process);
+        finally
+          p := sess.Process;
+          sess.Process := nil;
+          p.free;
+        end;
       finally
-        sess.Process.free;
-        sess.Process := nil;
+        params.free;
       end;
     finally
-      params.free;
+      // any tests still running, mark them as halted (including when the run was stopped)
+      markTestHalted(node);
     end;
-    // any tests still running, mark them as halted.
-    markTestHalted(node);
   finally
+    // finish up before telling the UI the run is over - the UI frees the session at that point
+    FinishTests;
     self.listener.EndRun(node);
   end;
-  FinishTests;
 end;
 
 procedure TTestEngineExternal.terminateTests(session: TTestSession);
@@ -672,7 +707,7 @@ end;
 
 procedure TTestEngineExternal.finishTestRun(session: TTestSession);
 begin
-  //  nothing here
+  session.Free; // the session is ours to free (see TTestEngine.finishTestRun)
 end;
 
 { TTestEngineExternalCmdLine }

@@ -235,7 +235,8 @@ end;
 
 procedure TTestEngine.setStatusMessage(s: String);
 begin
-  FOnStatusMessage(self, s);
+  if assigned(FOnStatusMessage) then
+    FOnStatusMessage(self, s);
 end;
 
 function TTestEngine.canStop: boolean;
@@ -365,7 +366,7 @@ begin
     end;
     if FExceptionMessage <> '' then
       if FSourceUnitError <> '' then
-        result := result + '. '+FExceptionClassName+': '+FExceptionMessage+' (@'+FSourceUnitError+'#'+inttostr(FLineNumber)
+        result := result + '. '+FExceptionClassName+': '+FExceptionMessage+' (@'+FSourceUnitError+'#'+inttostr(FLineNumber)+')'
       else
         result := result + '. '+FExceptionClassName+': '+FExceptionMessage;
     result := result + #13#10;

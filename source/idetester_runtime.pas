@@ -243,15 +243,24 @@ begin
   result := hasCommandLineParam(FPC_MAGIC_COMMAND);
 end;
 
+procedure registerTest(allTests : TDictionary<TTest, TTestInfo>; test : TTest; path : String);
+begin
+  // the same test object could (in principle) be registered more than once
+  if not allTests.ContainsKey(test) then
+    allTests.Add(test, TTestInfo.create(path));
+end;
+
 procedure printTests(indent : String; path : String; suite : TTestSuite; allTests : TDictionary<TTest, TTestInfo>; writer : TTestOutputWriter; output : boolean);
 var
   i: integer;
   cindent : String;
   cpath : String;
+  inner : TTest;
 begin
   for i := 0 to suite.ChildTestCount - 1 do
   begin
-    if (suite.Test[i].TestName = '') and (suite.ChildTestCount = 1) then
+    // a single unnamed child suite is merged into its parent (but a test case always gets its own entry)
+    if (suite.Test[i].TestName = '') and (suite.ChildTestCount = 1) and (suite.Test[i] is TTestSuite) then
     begin
       cindent := indent;
       cpath := path
@@ -261,14 +270,20 @@ begin
       cpath := path+'.'+inttostr(i);
       if output then
         writer.write(indent+cpath+' = '+suite.Test[i].className+': '+suite.Test[i].TestName+' @@ '+suite.Test[i].UnitName);
-      allTests.Add(suite.Test[i], TTestInfo.create(cpath));
+      registerTest(allTests, suite.Test[i], cpath);
       cindent := indent + ' ';
     end;
 
     if suite.Test[i] is TTestSuite then
       printTests(cindent, cpath, TTestSuite(suite.Test[i]), allTests, writer, output)
     else if TObject(suite.Test[i]).InheritsFrom(TTestDecorator) then
-      printTests(cindent, cpath, TTestSuite(TTestDecorator(suite.Test[i]).Test), allTests, writer, output);
+    begin
+      inner := TTestDecorator(suite.Test[i]).Test;
+      if inner is TTestSuite then
+        printTests(cindent, cpath, TTestSuite(inner), allTests, writer, output)
+      else if inner <> nil then
+        registerTest(allTests, inner, cpath); // results for the decorated test are reported against the decorator
+    end;
   end;
 end;
 
@@ -282,19 +297,15 @@ begin
   if output then
     writer.write('0 = RootTest: AllTests');
   printTests(' ', '0', test, allTests, writer, output);
-  allTests.Add(test, TTestInfo.create('0'));
+  registerTest(allTests, test, '0');
   if output then
     writer.write('-- End Test List ---');
 end;
 
-function findTest(allTests : TDictionary<TTest, TTestInfo>; id : String) : TTest; overload;
-var
-  test : TTest;
+function findTest(ids : TDictionary<String, TTest>; id : String) : TTest; overload;
 begin
-  result := nil;
-  for test in allTests.keys do
-    if allTests[test].id = id then
-      exit(test);
+  if not ids.TryGetValue(id, result) then
+    result := nil;
 end;
 
 
@@ -304,34 +315,44 @@ var
   listener : ITestListener;
   tr : TTestResult;
   s : string;
+  ids : TDictionary<String, TTest>;
 begin
-  test := findTest(allTests, id);
-  if test = nil then
-  begin
-    writer.write('Unable to find test '+id);
-    result := 1;
-  end
-  else
-  begin
-    listener := TTestEngineRunTimeListener.create(allTests, writer) as ITestListener;
-    tr := TTestResult.create;
-    try
-      tr.AddListener(listener);
-      if skipList.count > 0 then
-        for s in skiplist do
-        begin
-          st := findTest(allTests, s);
-          if st is TTestCase then
-            tr.AddToSkipList(st as TTestCase);
-        end;
-      test.Run(tr);
-      if tr.NumberOfErrors + tr.NumberOfFailures > 0 then
-        result := 1
-      else
-        result := 0;
-    finally
-      tr.free;
+  // id -> test, so that looking up the skip list isn't (tests x skipped)
+  ids := TDictionary<String, TTest>.create;
+  try
+    for test in allTests.Keys do
+      if not ids.ContainsKey(allTests[test].id) then
+        ids.Add(allTests[test].id, test);
+    test := findTest(ids, id);
+    if test = nil then
+    begin
+      writer.write('Unable to find test '+id);
+      result := 1;
+    end
+    else
+    begin
+      listener := TTestEngineRunTimeListener.create(allTests, writer) as ITestListener;
+      tr := TTestResult.create;
+      try
+        tr.AddListener(listener);
+        if skipList.count > 0 then
+          for s in skiplist do
+          begin
+            st := findTest(ids, s);
+            if st is TTestCase then
+              tr.AddToSkipList(st as TTestCase);
+          end;
+        test.Run(tr);
+        if tr.NumberOfErrors + tr.NumberOfFailures > 0 then
+          result := 1
+        else
+          result := 0;
+      finally
+        tr.free;
+      end;
     end;
+  finally
+    ids.Free;
   end;
 end;
 
@@ -362,6 +383,7 @@ end;
 procedure RunIDETests;
 var
   allTests : TDictionary<TTest, TTestInfo>;
+  ti : TTestInfo;
   skiplist : TStringList;
   fn : String;
   writer : TTestOutputWriter;
@@ -392,6 +414,8 @@ begin
         else
           exitCode := 1;
       finally
+        for ti in allTests.Values do
+          ti.Free;
         allTests.free;
       end;
     finally
@@ -452,17 +476,19 @@ procedure TTestEngineRunTimeListener.StartTest(ATest: TTest);
 var
   ti : TTestInfo;
 begin
-  ti := FTests[aTest];
-  FWriter.write(ti.id+': start');
-  ti.start := GetTickCount64;
+  if FTests.TryGetValue(aTest, ti) then
+  begin
+    FWriter.write(ti.id+': start');
+    ti.start := GetTickCount64;
+  end;
 end;
 
 procedure TTestEngineRunTimeListener.EndTest(ATest: TTest);
 var
   ti : TTestInfo;
 begin
-  ti := FTests[aTest];
-  FWriter.write(ti.id+': end '+inttostr(GetTickCount64 - ti.start));
+  if FTests.TryGetValue(aTest, ti) then
+    FWriter.write(ti.id+': end '+inttostr(GetTickCount64 - ti.start));
 end;
 
 procedure TTestEngineRunTimeListener.StartTestSuite(ATestSuite: TTestSuite);
@@ -492,16 +518,16 @@ procedure TTestEngineRunTimeListener.AddFailure(ATest: TTest; AFailure: TTestFai
 var
   ti : TTestInfo;
 begin
-  ti := FTests[aTest];
-  FWriter.write(ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage+' @@ '+AFailure.LocationInfo);
+  if FTests.TryGetValue(aTest, ti) then
+    FWriter.write(ti.id+': fail '+AFailure.ExceptionClassName+' '+AFailure.ExceptionMessage+' @@ '+AFailure.LocationInfo);
 end;
 
 procedure TTestEngineRunTimeListener.AddError(ATest: TTest; AError: TTestFailure);
 var
   ti : TTestInfo;
 begin
-  ti := FTests[aTest];
-  FWriter.write(ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage+' @@ '+AError.LocationInfo);
+  if FTests.TryGetValue(aTest, ti) then
+    FWriter.write(ti.id+': error '+AError.ExceptionClassName+' '+AError.ExceptionMessage+' @@ '+AError.LocationInfo);
 end;
 
 end.
